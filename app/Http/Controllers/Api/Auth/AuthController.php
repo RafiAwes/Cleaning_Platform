@@ -16,9 +16,16 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
-            'role' => 'required|string|in:admin,user,author'
+            'password_confirmation' => 'required|string|min:8',
+            'role' => 'required|string|in:admin,user,author',
         ]);
-
+        $matchPassword = $data['password'] === $data['password_confirmation'];
+        if (!$matchPassword) {
+            throw ValidationException::withMessages([
+                'password' => 'The password does not match.',
+            ]);
+        }
+        
         $user = new User();
         $user->name = $data['name'];
         $user->email = $data['email'];
@@ -59,9 +66,16 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
+        $data = $request->validate([
+            'token' => 'required|string',
+        ]);
+        // /** @var \Laravel\Sanctum\PersonalAccessToken $personalAccessToken */
+        // $personalAccessToken = $request->user()->currentAccessToken();
+        // $personalAccessToken->delete()
+
         /** @var \Laravel\Sanctum\PersonalAccessToken $personalAccessToken */
-        $personalAccessToken = $request->user()->currentAccessToken();
-        $personalAccessToken->delete();
+
+        $data['token'] = $request->user()->currentAccessToken()->delete();
 
         return response()->json([
             'message' => 'Logged out Successfully.',
