@@ -66,9 +66,6 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        $data = $request->validate([
-            'token' => 'required|string',
-        ]);
         /** @var \Laravel\Sanctum\PersonalAccessToken $personalAccessToken */
         $personalAccessToken = $request->user()->currentAccessToken();
         $personalAccessToken->delete();

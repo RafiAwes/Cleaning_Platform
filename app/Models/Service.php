@@ -8,17 +8,28 @@ class Service extends Model
 {
     protected $fillable = [
         'name',
-        'vendor_id',
+        'package',
         'slug',
         'status',
-        'image_path',
-        'description',
-        'price',
+        // 'image_path',
+        // 'description',
+        // 'price',
     ];
 
+    
+    public function user() {
+        return $this->belongsTo(User::class);
+    }
+    
     public function bookings() {
         return $this->hasMany(Booking::class);
     }
+
+    public function package() {
+        return $this->belongsTo(Package::class);
+    }
+
+
 
     
 
