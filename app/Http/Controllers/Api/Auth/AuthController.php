@@ -69,13 +69,9 @@ class AuthController extends Controller
         $data = $request->validate([
             'token' => 'required|string',
         ]);
-        // /** @var \Laravel\Sanctum\PersonalAccessToken $personalAccessToken */
-        // $personalAccessToken = $request->user()->currentAccessToken();
-        // $personalAccessToken->delete()
-
         /** @var \Laravel\Sanctum\PersonalAccessToken $personalAccessToken */
-
-        $data['token'] = $request->user()->currentAccessToken()->delete();
+        $personalAccessToken = $request->user()->currentAccessToken();
+        $personalAccessToken->delete();
 
         return response()->json([
             'message' => 'Logged out Successfully.',
