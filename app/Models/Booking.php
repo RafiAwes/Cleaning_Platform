@@ -8,7 +8,7 @@ class Booking extends Model
 {
     protected $fillable = [
         'customer_id',
-        'service_id',
+        'package_id',
         'cleaner_id',
         'booking_date',
         'status',
@@ -16,8 +16,7 @@ class Booking extends Model
     ] ;
 
     public function customer(){
-        return $this->hasMany(Customer::class);
-        return $this->belongsTo(Customer::class, 'customer_id');
+        return $this->belongsTo(User::class, 'customer_id');
     }
 
     public function service()

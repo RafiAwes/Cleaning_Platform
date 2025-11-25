@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Carbon\Carbon;
 
 class AuthController extends Controller
 {
@@ -31,6 +32,7 @@ class AuthController extends Controller
         $user->email = $data['email'];
         $user->password = Hash::make($data['password']);
         $user->role = $data['role'];
+        $user->created_at = Carbon::now();
         $user->save();
 
         $token = $user->createToken('auth_token')->plainTextToken;

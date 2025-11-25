@@ -8,9 +8,10 @@ class Cleaner extends Model
 {
     protected $fillable = [
         'name',
-        'email',
         'phone',
+        'image',
         'status',
+        'ratings',
     ];
 
     public function vendor() {

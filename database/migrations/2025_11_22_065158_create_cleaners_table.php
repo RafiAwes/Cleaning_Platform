@@ -14,9 +14,10 @@ return new class extends Migration
         Schema::create('cleaners', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('email')->unique();
             $table->string('phone');
-            $table->enum('status', ['active', 'inactive'])->default('active');
+            $table->string('image')->nullable();
+            $table->enum('status', ['active', 'assigned', 'completed'])->default('active');
+            $table->float('ratings')->default(0)->nullable();
             $table->timestamps();
         });
     }

@@ -12,9 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('bookings', function (Blueprint $table) {
-            // Add foreign key constraints after all referenced tables are created
-            $table->foreign('service_id')->references('id')->on('services')->onDelete('cascade');
-            $table->foreign('cleaner_id')->references('id')->on('cleaners')->onDelete('set null');
+            $table->foreign('customer_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('package_id')->references('id')->on('packages')->onDelete('cascade');
         });
     }
 
@@ -24,8 +23,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('bookings', function (Blueprint $table) {
-            $table->dropForeign(['service_id']);
-            $table->dropForeign(['cleaner_id']);
+            $table->dropForeign(['customer_id']);
+            $table->dropForeign(['package_id']);
         });
     }
 };
