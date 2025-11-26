@@ -29,8 +29,8 @@ class Booking extends Model
         return $this->belongsTo(Cleaner::class, 'cleaner_id');
     }
 
-    public function payment(){
-        return $this->hasOne(Payment::class);
+    public function transaction(){
+        return $this->hasOne(Transaction::class);
     }
 
     public function review(){

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Controller;
 
 
+
 class BookingController extends Controller
 {
     public function createBooking(Request $request, $packageId)

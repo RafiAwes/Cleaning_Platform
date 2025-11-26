@@ -48,7 +48,8 @@ Route::middleware(['auth:sanctum', 'role:vendor'])->group(function () {
         Route::post('vendor/add/cleaner', 'addCleaner');
         Route::post('set/revenue/target', 'setRevenueTarget');
         Route::post('set/booking/target', 'setBookingTarget');
-        
+        Route::get('/vendor/transactions', 'transactionHistory');
+        Route::get('/vendor/transactions/total', 'totalEarnings')->name('totalEarnings');
     });
     Route::group(['controller' => CleanerController::class], function () {
         Route::post('vendor/add/cleaner', 'create')->name('createCleaner');

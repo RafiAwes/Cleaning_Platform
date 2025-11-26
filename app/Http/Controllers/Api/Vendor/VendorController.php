@@ -9,9 +9,11 @@ use App\Models\Package;
 use App\Models\Service;
 use App\Models\Booking;
 use App\Models\Cleaner;
+use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Controller;
+
 
 class VendorController extends Controller
 {
@@ -354,5 +356,24 @@ class VendorController extends Controller
                 'vendor' => $vendor->revenue_target
             ], 200);
         }   
+    }
+
+    public function totalEarnings(){
+        $vendor = Auth::user();
+        $total_amount = Transaction::where('vendor_id', $vendor->id)->where('status', 'paid')->sum('vendor_amount');
+        return response()->json([
+            'success' => true,
+            'total_amount' => $total_amount,
+        ]);
+    }
+
+    public function transactionHistory(){
+        $vendor = Auth::user();
+        $trasactions = Transaction::where('vendor_id', $vendor->id)->orderBy('created_at','desc')->paginate(10);
+        return response()->json([
+            'success' => true,
+            'transactions' => $trasactions,
+        ]);
+        
     }
 }

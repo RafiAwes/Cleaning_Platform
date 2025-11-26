@@ -6,6 +6,7 @@ use Stripe\Account;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Models\Booking;
+use App\Models\Transaction;
 use Illuminate\Http\Request;
 use App\Services\StripeService;
 use Laravel\Sanctum\HasApiTokens;
@@ -124,6 +125,18 @@ class StripeController extends Controller
             // mark booking as paid
             $booking->payment_status = 'paid';
             $booking->save();
+            $transaction = Transaction::create([
+            'booking_id' => $bookingId,
+            'vendor_id' => $vendorId,
+            'payment_intent_id' => $paymentIntentId,
+            'charge_id' => $object['charges']['data'][0]['id'],
+            'transfer_id' => $transfer->id,
+            'total_amount' => $total,
+            'platform_fee' => $platformFee,
+            'vendor_amount' => $vendorAmount,
+            'status' => 'paid'
+        ]);
+
         }
 
         return response()->json(['status' => 'ok']);
