@@ -21,6 +21,11 @@ return new class extends Migration
             $table->time('to_time')->nullable();
             $table->integer('bookings_target')->nullable()->default(0);
             $table->integer('revenue_target')->nullable()->default(0);
+            $table->string('stripe_id')->nullable()->index();
+            $table->string('pm_type')->nullable();
+            $table->string('pm_last_four', 4)->nullable();
+            $table->timestamp('trial_ends_at')->nullable();
+            $table->boolean('is_stripe_connected')->default(false);
             $table->timestamps();
         });
     }

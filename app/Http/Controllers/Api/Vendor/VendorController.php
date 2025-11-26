@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api\Vendor;
 
 use App\Models\User;
 use App\Models\Addon;
+use App\Models\Vendor;
 use App\Models\Package;
 use App\Models\Service;
+use App\Models\Booking;
 use App\Models\Cleaner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -302,10 +304,55 @@ class VendorController extends Controller
     public function getCleaners()
     {
         $cleaners = Cleaner::where('vendor_id', Auth::id())->get();
-        return response->json([
+        return response()->json([
             'message' => 'Cleaners retrieved successfully',
             'cleaners' => $cleaners
         ]);
     }
-    
+
+    public function bookingTarget(Request $request)
+    {
+        $vendor = Vendor::where('user_id', Auth::id())->firstorFail();
+        if (!$vendor) {
+            $bookingTarget = new Vendor();
+            $bookingTarget->user_id = Auth::id();
+            $bookingTarget->bookings_target = $request->bookings_target;
+            $bookingTarget->save();
+            return response()->json([
+                'message' => 'Booking target set successfully',
+                'vendor' => $bookingTarget
+            ], 201);
+        } else {
+            $vendor->update([
+                'bookings_target' => $request->bookings_target
+            ]);
+            return response()->json([
+                'message' => 'Bookings target updated successfully',
+                'vendor' => $vendor->bookings_target
+            ], 200);
+        }   
+    }
+
+    public function revenueTarget(Request $request)
+    {
+        $vendor = Vendor::where('user_id', Auth::id())->firstorFail();
+        if (!$vendor) {
+            $revenueTarget = new Vendor();
+            $revenueTarget->user_id = Auth::id();
+            $revenueTarget->revenue_target = $request->revenue_target;
+            $revenueTarget->save();
+            return response()->json([
+                'message' => 'Revenue target set successfully',
+                'vendor' => $revenueTarget
+            ], 201);
+        } else {
+            $vendor->update([
+                'revenue_target' => $request->revenue_target
+            ]);
+            return response()->json([
+                'message' => 'Revenue target updated successfully',
+                'vendor' => $vendor->revenue_target
+            ], 200);
+        }   
+    }
 }

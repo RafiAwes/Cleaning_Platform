@@ -18,6 +18,8 @@ return new class extends Migration
             $table->enum('status', ['pending','paid','failed','refunded'])->default('pending');
             $table->enum('payment_method', ['card','wallet','cash']);
             $table->string('transaction_id')->nullable();
+            $table->string('stripe_account_id')->nullable();
+            $table->boolean('is_stripe_connected')->default(false);
             $table->timestamps();
         });
     }

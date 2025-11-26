@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('packages', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('vendor_id')->constrained('users')->onDelete('cascade');
             $table->string('title');
             $table->string('image')->nullable();
             $table->decimal('price', 10, 2)->nullable();

@@ -18,8 +18,10 @@ return new class extends Migration
             $table->unsignedBigInteger('cleaner_id')->nullable()->default(NULL);
             $table->dateTime('booking_date');
             $table->enum('status', ['pending','ongoing','completed','cancelled'])->default('pending');
+            $table->text('notes')->nullable();
             $table->string('address');
             $table->decimal('total_price', 10, 2);
+            $table->enum('payment_status', ['pending','paid','failed'])->default('pending');
             $table->timestamps();
             
             // We'll add the foreign key constraints in a separate migration after all tables are created

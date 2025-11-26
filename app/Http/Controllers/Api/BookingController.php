@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\Booking;
+use Carbon\Carbon;
 use App\Models\Cleaner;
+use App\Models\Package;
+use App\Models\Booking;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\Controller;
 
 
 class BookingController extends Controller
@@ -22,11 +25,11 @@ class BookingController extends Controller
             'status' => 'required|string',
         ]);
 
-        /** @var \Illuminate\Contracts\Auth\Guard $auth */
-        $auth = auth();
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
         
         $booking = new Booking();
-        $booking->customer_id = $auth->id();
+        $booking->customer_id = $user->id;
         // $booking->cleaner_id = null;
         $booking->package_id = $packageId;
         $booking->booking_date = $data['date'];
@@ -73,5 +76,121 @@ class BookingController extends Controller
             'message' => 'Booking rejected successfully',
             'booking' => $booking,
         ], 200);
+    }
+
+    public function checkAvailabilityByDate($packageId)
+    {
+        // Get package & vendor
+        $package = Package::findOrFail($packageId);
+        $vendorId = $package->vendor_id;
+
+        // Count vendor cleaners
+        $totalCleaners = Cleaner::where('vendor_id', $vendorId)->count();
+
+        if ($totalCleaners === 0) {
+            return response()->json([
+                'message' => 'No cleaners available for this vendor.',
+                'unavailable_dates' => []
+            ]);
+        }
+
+        //Get bookings for this vendor’s cleaners
+        $bookings = Booking::whereHas('cleaner', function($q) use ($vendorId) 
+        {
+            $q->where('vendor_id', $vendorId);
+        })
+        ->whereIn('status', ['pending', 'ongoing'])
+        ->get();
+
+        //Group bookings by date
+        $assignedByDate = [];
+
+        foreach ($bookings as $booking) 
+        {
+            $date = Carbon::parse($booking->booking_date)->format('Y-m-d');
+
+            if (!isset($assignedByDate[$date])) {
+                $assignedByDate[$date] = 0;
+            }
+
+            if ($booking->cleaner_id) {
+                $assignedByDate[$date]++;
+            }
+        }
+
+        //Determine unavailable dates
+        $unavailableDates = [];
+
+        foreach ($assignedByDate as $date => $assignedCount) {
+            if ($assignedCount >= $totalCleaners) {
+                $unavailableDates[] = $date;
+            }
+        }
+
+        return response()->json([
+            'unavailable_dates' => $unavailableDates,
+            'total_cleaners' => $totalCleaners
+        ]);
+    }
+
+    public function completeBooking(Request $request, $bookingId)
+    {
+        $booking = Booking::findOrFail($bookingId);
+        $booking->status = 'completed';
+        $booking->update();
+        return response()->json([
+            'message' => 'Booking completed successfully',
+            'booking' => $booking,
+        ], 200);
+    }
+
+    public function cancelBooking(Request $request, $bookingId)
+    {
+        $user = Auth::user();
+        if ($user->role != 'customer') {
+            $booking = Booking::findOrFail($bookingId);
+            $booking->status = 'cancelled';
+            $booking->notes = 'Customer cancelled the booking';
+            $booking->update();
+            return response()->json([
+                'message' => 'Booking cancelled successfully',
+                'booking' => $booking,
+            ], 200);
+        } else if ($user->role == 'vendor') {
+            $booking = Booking::where('vendor_id', $user->id)->findOrFail($bookingId);
+            $booking->status = 'cancelled';
+            $booking->notes = 'Vendor cancelled the booking';
+            $booking->update();
+            return response()->json([
+                'message' => 'Booking cancelled successfully',
+                'booking' => $booking,
+            ], 200);
+        } else {
+            return response()->json([
+                'message' => 'Unauthorized'
+            ], 401);
+        }
+    }
+
+    public function getBookings()
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        
+        if($user->role == 'customer'){
+            $bookings = Booking::where('customer_id', $user->id)->get();
+        } else if($user->role == 'vendor'){
+            $bookings = Booking::where('vendor_id', $user->id)->get();
+        } else if($user->role == 'admin'){
+            $bookings = Booking::all();
+        } else {
+            return response()->json([
+                'message' => 'Unauthorized'
+            ], 401);
+        }
+        return response()->json([
+            'message' => 'Bookings retrieved successfully',
+            'bookings' => $bookings
+        ]);
     }
 }
