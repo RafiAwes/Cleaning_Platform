@@ -7,10 +7,12 @@ use App\Http\Controllers\Api\StripeController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\CleanerController;
 use App\Http\Controllers\Api\MessageController;
+use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Admin\AdminController;
 use App\Http\Controllers\Api\Vendor\VendorController;
 use App\Http\Controllers\Api\Customer\CustomerController;
+
 
 Route::post('/register', [AuthController::class, 'register']);
 // Public routes for authentication
@@ -63,6 +65,13 @@ Route::middleware(['auth:sanctum', 'role:vendor'])->group(function () {
         Route::post('vendor/accept/booking/{booking}', 'acceptBooking');
         Route::post('vendor/reject/booking/{booking}', 'rejectBooking');
         Route::post('vendor/complete/booking/{booking}', 'completeBooking')->name('completeBooking');
+    });
+    Route::group(['controller' => InventoryController::class], function () {
+        Route::post('vendor/add/product', 'addProduct')->name('addProduct');
+        Route::put('vendor/update/product/{product}', 'updateProduct')->name('updateProduct');
+        Route::delete('vendor/remove/product/{product}', 'deleteProduct')->name('deleteProduct');
+        Route::get('vendor/products', 'getProductsByVendor')->name('getProducts');
+        Route::get('vendor/product/details/{product_id}', 'productDetails')->name('getProductDetails');
     });
 });
 
