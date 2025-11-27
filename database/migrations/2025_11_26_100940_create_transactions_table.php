@@ -23,7 +23,7 @@ return new class extends Migration
             $table->integer('total_amount');      
             $table->integer('platform_fee');      
             $table->integer('vendor_amount');     
-            $table->string('status', ['paid', 'refunded', 'failed'])->default('paid'); 
+            $table->enum('status', ['paid', 'refunded', 'failed'])->default('paid'); 
             $table->timestamps();
         });
     }

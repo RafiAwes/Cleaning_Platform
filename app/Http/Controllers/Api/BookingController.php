@@ -3,13 +3,17 @@
 namespace App\Http\Controllers\Api;
 
 use Carbon\Carbon;
+use App\Models\User;
 use App\Models\Cleaner;
 use App\Models\Package;
 use App\Models\Booking;
 use Illuminate\Http\Request;
+use App\Notifications\BookingStatus;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Controller;
-
+use App\Notifications\BookingCreated;
+use App\Notifications\CustomerBookedPackage;
+use App\Notifications\DeliveryRequest;
 
 
 class BookingController extends Controller
@@ -38,6 +42,12 @@ class BookingController extends Controller
         $booking->location = $data['location'];
         $booking->status = $data['status'];
         $booking->save();
+        
+        $user->notify(new BookingCreated($booking));
+        $vendor_id = $booking->package->vendor_id;
+        $vendor = User::findOrFail($vendor_id);
+        $vendor->notify(new CustomerBookedPackage($booking, 'new'));
+        
 
         return response()->json([
             'message' => 'Booking created successfully',
@@ -51,6 +61,10 @@ class BookingController extends Controller
         if ($booking->status == 'pending') {
             $booking->status = 'accepted';
             $booking->update();
+            $customer_id = $booking->customer_id;
+            $customer = User::findOrFail($customer_id);
+            $customer->notify(new BookingStatus($booking, 'rejected'));
+
         } else {
             return response()->json([
                 'message' => 'Booking is not pending',
@@ -68,6 +82,9 @@ class BookingController extends Controller
         if ($booking->status == 'pending') {
             $booking->status = 'rejected';
             $booking->update();
+            $customer_id = $booking->customer_id;
+            $customer = User::findOrFail($customer_id);
+            $customer->notify(new BookingStatus($booking, 'rejected'));
         } else {
             return response()->json([
                 'message' => 'Booking is not pending',
@@ -139,6 +156,11 @@ class BookingController extends Controller
         $booking = Booking::findOrFail($bookingId);
         $booking->status = 'completed';
         $booking->update();
+        $customer_id = $booking->customer_id;
+        $customer = User::findOrFail($customer_id);
+        $customer->notify(new BookingStatus($booking, 'completed'));
+        $vendor_name = $booking->package->vendor->user->name;
+        $customer->notify(new DeliveryRequest($booking, $vendor_name));
         return response()->json([
             'message' => 'Booking completed successfully',
             'booking' => $booking,
@@ -153,6 +175,9 @@ class BookingController extends Controller
             $booking->status = 'cancelled';
             $booking->notes = 'Customer cancelled the booking';
             $booking->update();
+            $vendor_id = $booking->package->vendor_id;
+            $vendor = User::findOrFail($vendor_id);
+            $vendor->notify(new BookingStatus($booking, 'cancelled'));
             return response()->json([
                 'message' => 'Booking cancelled successfully',
                 'booking' => $booking,
@@ -162,6 +187,9 @@ class BookingController extends Controller
             $booking->status = 'cancelled';
             $booking->notes = 'Vendor cancelled the booking';
             $booking->update();
+            $customer_id = $booking->customer_id;
+            $customer = User::findOrFail($customer_id);
+            $customer->notify(new BookingStatus($booking, 'cancelled'));
             return response()->json([
                 'message' => 'Booking cancelled successfully',
                 'booking' => $booking,

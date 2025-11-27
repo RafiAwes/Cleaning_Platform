@@ -69,7 +69,11 @@ Route::middleware(['auth:sanctum', 'role:vendor'])->group(function () {
 
 // Customer routes
 Route::middleware(['auth:sanctum', 'role:customer'])->group(function () {
-    Route::get('customer/dashboard', [CustomerController::class, 'dashboard']);
+    Route::group(['controller' => CustomerController::class], function () {
+        Route::get('customer/dashboard', 'dashboard');
+        Route::post('customer/accept/delivery/{package_id}', 'acceptDelivery');
+        Route::post('customer/reject/delivery/{package_id}', 'rejectDelivery');
+    });
     Route::group(['controller' => BookingController::class], function () {
         Route::get('customer/bookings', 'index');
         Route::post('customer/create/booking', 'createBooking');
@@ -92,5 +96,23 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/vendor/stripe/connect', 'connectStripe');
         Route::get('/stripe/callback', 'callback');
         Route::post('/payment-intent', 'createPaymentIntent');
+    });
+
+    Route::get('/notifications', function () {
+        $notifications = Auth::user()->notifications;
+        return response()->json(['notifications' => $notifications], 200);
+    });
+    Route::post('/notifications/read-all', function () {
+        Auth::user()->unreadNotifications->markAsRead();
+        return response()->json(['message' => 'Notifications marked as read'], 200);
+    });
+    Route::post('/notifications/{id}/read', function ($id){
+        $notification = Auth::user()->notifications()->where('id', $id)->first();
+        if ($notification) {
+            $notification->markAsRead();
+            return response()->json(['message' => 'Notification marked as read'], 200);
+        } else {
+            return response()->json(['message' => 'Notification not found'], 404);
+        }
     });
 });
