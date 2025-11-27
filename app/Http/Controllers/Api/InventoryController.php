@@ -105,7 +105,7 @@ class InventoryController extends Controller
     {
         $user = Auth::user();
         if ($user->role == 'vendor') {
-            $inventory = Inventory::where('vendor_id', $user->id)->paginate(10);
+            $inventory = Inventory::where('vendor_id', $user->id)->simplePaginate(10);
             return response()->json(["inventory" => $inventory], 200);
         } else {
             return response()->json(["message" => "You are not authorized to view products"], 403);
