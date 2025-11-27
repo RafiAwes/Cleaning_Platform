@@ -4,14 +4,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AddonController;
 use App\Http\Controllers\Api\StripeController;
-use App\Http\Controllers\Api\CleanerController;
 use App\Http\Controllers\Api\BookingController;
+use App\Http\Controllers\Api\CleanerController;
+use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Admin\AdminController;
 use App\Http\Controllers\Api\Vendor\VendorController;
 use App\Http\Controllers\Api\Customer\CustomerController;
-
-
 
 Route::post('/register', [AuthController::class, 'register']);
 // Public routes for authentication
@@ -115,4 +114,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
             return response()->json(['message' => 'Notification not found'], 404);
         }
     });
+    Route::group(['controller' => MessageController::class], function () {
+        Route::post('/messages/send', 'sendMessage');
+        Route::get('/messages/{userId}', 'getMessages');
+    });
+    Route::group(['controller' => CleanerController::class], function () {
+        Route::post('vendor/add/cleaner', 'create')->name('createCleaner');
+        Route::put('vendor/update/cleaner/{cleaner}', 'update')->name('updateCleaner');
+        Route::delete('vendor/remove/cleaner/{cleaner}', 'delete')->name('deleteCleaner');
+        Route::post('vendor/bookings/{booking_id}/assign-cleaner','assignCleaners')->name('assignCleaners');
+    });             
 });
