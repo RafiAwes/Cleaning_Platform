@@ -17,24 +17,48 @@ use App\Http\Controllers\Controller;
 
 class VendorController extends Controller
 {
+    const VENDOR_IMAGE_PATH = 'images/vendors';
+    const DEFAULT_IMAGE_PATH = self::VENDOR_IMAGE_PATH . '/default.png';
+    
+    private function storeVendorImage($image)
+    {
+        // Create directory if it doesn't exist
+        $directory = public_path(self::VENDOR_IMAGE_PATH);
+        if (!file_exists($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        // Generate unique filename
+        $imageName = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
+        
+        // Move image to public/images/vendors folder
+        $image->move($directory, $imageName);
+        
+        return self::VENDOR_IMAGE_PATH . '/' . $imageName;
+    }
+
     public function dashboard()
     {
         return "Vendor Dashboard";
     }
 
-    public function update(Request $request)
+    public function updateOrCreate(Request $request)
     {
         /** @var \App\Models\User $currentUser */
         $currentUser = Auth::user();
         $userId = $currentUser->id;
+        $vendor = Vendor::where('user_id', $userId)->first();
         
+        if (!$vendor) {
+            $vendor = new Vendor();
+        }
         $validated = $request->validate([
-            "name" => "sometimes|string",
-            "email" => "sometimes|email|unique:users,email," . $userId,
-            "phone" => "sometimes|string",
-            "about" => "sometimes|string",
-            "address" => "sometimes|string",
-            "profile_image" => "nullable|file",
+            "name" => "nullable|string",
+            "email" => "nullable|email|unique:users,email," . $userId,
+            "phone" => "nullable|string",
+            "about" => "nullable|string",
+            "address" => "nullable|string",
+            "profile_image" => "nullable|image|mimes:jpeg,png,jpg,gif|max:2048",
             'start_time' => 'sometimes|string',
             'end_time' => 'sometimes|string',
         ]);
@@ -43,9 +67,9 @@ class VendorController extends Controller
         $user = Auth::user();
 
         // Upload profile image
-        if (!empty($validated["profile_image"])) {
-            $validated["profile_image"] =
-                $validated["profile_image"]->store("vendors", "public");
+        if ($request->hasFile('profile_image')) {
+            $imagePath = $this->storeVendorImage($request->file('profile_image'));
+            $user->profile_picture = $imagePath;
         }
 
         $user->update($validated);
@@ -53,6 +77,40 @@ class VendorController extends Controller
         return response()->json([
             "message" => "Vendor profile updated successfully",
             "vendor" => $user
+        ]);
+    }
+    
+    public function updateAddress(Request $request)
+    {
+        /** @var \App\Models\User $currentUser */
+        $currentUser = Auth::user();
+        
+        // Check if the user is a vendor
+        if ($currentUser->role !== 'vendor') {
+            return response()->json([
+                'message' => 'Access denied. Only vendors can update their address.'
+            ], 403);
+        }
+        
+        $vendor = Vendor::where('user_id', $currentUser->id)->first();
+        
+        if (!$vendor) {
+            // Create vendor profile if it doesn't exist
+            $vendor = new Vendor();
+            $vendor->user_id = $currentUser->id;
+            $vendor->approval_status = 'pending';
+        }
+        
+        $validated = $request->validate([
+            "address" => "required|string",
+        ]);
+        
+        $vendor->address = $validated['address'];
+        $vendor->save();
+        
+        return response()->json([
+            "message" => "Vendor address updated successfully",
+            "vendor" => $vendor
         ]);
     }
 

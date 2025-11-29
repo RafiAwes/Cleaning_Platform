@@ -15,6 +15,11 @@ class vendor extends Model
         'to_time',
         'bookings_target',
         'revenue_target',
+        'is_verified',
+        'approval_status',
+        'address',
+        'image_path',
+        'phone',
     ];
 
     public function user()
@@ -26,5 +31,4 @@ class vendor extends Model
     {
         return $this->hasMany(Package::class, 'vendor_id', 'id');
     }
-
 }

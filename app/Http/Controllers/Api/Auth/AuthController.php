@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Models\User;
+use App\Models\Vendor;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Hash;
@@ -72,17 +73,24 @@ class AuthController extends Controller
         $user = new User();
         $user->name = $data['name'];
         $user->email = $data['email'];
-        $user->address = $data['address'];
+        // Note: Not storing address in users table for vendors
         $user->password = Hash::make($data['password']);
         $user->role = "vendor";
         $user->created_at = Carbon::now();
         $user->save();
 
+        // Create vendor profile with pending approval status
+        $vendor = new Vendor();
+        $vendor->user_id = $user->id; // This references the user's id
+        $vendor->address = $data['address']; // Store address only in vendors table
+        $vendor->approval_status = 'pending';
+        $vendor->save();
+
         // Send verification code
         $this->emailVerificationService->sendVerificationCode($user);
 
         return response()->json([
-            'message' => 'Registration successful. Please check your email for verification code.',
+            'message' => 'Registration successful. Your account is pending admin approval. Please check your email for verification code.',
             'user_id' => $user->id,
         ], 201);
     }
@@ -134,6 +142,22 @@ class AuthController extends Controller
             return response()->json([
                 'message' => 'Please verify your email before logging in.',
             ], 422);
+        }
+
+        // Check if vendor is approved
+        if ($user->role === 'vendor') {
+            $vendor = $user->vendor;
+            if ($vendor && $vendor->approval_status === 'pending') {
+                return response()->json([
+                    'message' => 'Your vendor account is pending admin approval.',
+                ], 403);
+            }
+            
+            if ($vendor && $vendor->approval_status === 'rejected') {
+                return response()->json([
+                    'message' => 'Your vendor account has been rejected.',
+                ], 403);
+            }
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;

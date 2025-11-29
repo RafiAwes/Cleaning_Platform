@@ -14,7 +14,10 @@ return new class extends Migration
         Schema::create('vendors', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->string('phone')->nullable();
             $table->text('about')->nullable();
+            $table->string('address')->nullable();
+            $table->string('image_path')->nullable();
             $table->string('badge')->nullable();
             $table->integer('ratings')->nullable()->default(0);
             $table->time('from_time')->nullable();
@@ -25,6 +28,7 @@ return new class extends Migration
             $table->string('pm_type')->nullable();
             $table->string('pm_last_four', 4)->nullable();
             $table->timestamp('trial_ends_at')->nullable();
+            $table->boolean('is_verified')->default(false);
             $table->boolean('is_stripe_connected')->default(false);
             $table->timestamps();
         });

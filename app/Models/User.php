@@ -4,6 +4,8 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Models\Notification;
+use App\Models\Vendor;
+use App\Models\Customer;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Notifications\Notifiable;
@@ -27,7 +29,7 @@ class User extends Authenticatable
         'google_id',
         'role',
         'phone',
-        'address',        
+        // Note: Not including 'address' as it's stored in vendors table for vendors
         'profile_picture',
         'status',
         'created_at',
@@ -78,5 +80,12 @@ class User extends Authenticatable
     public function notifications(){
         return $this->morphMany(Notification::class, 'notifiable')->orderBy('created_at', 'desc');
     }
-
+    
+    public function vendor(){
+        return $this->hasOne(Vendor::class, 'user_id');
+    }
+    
+    public function customer(){
+        return $this->hasOne(Customer::class, 'user_id');
+    }
 }

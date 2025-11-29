@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use Exception;
 use App\Models\User;
+use App\Models\Vendor;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
@@ -112,6 +113,15 @@ class GoogleController extends Controller
                     'role' => $userType, // Assign the role based on user type
                     'password' => encrypt('123456dummy')
                 ]);
+                
+                // If this is a vendor, create a vendor profile with pending approval
+                if ($userType === 'vendor') {
+                    $vendor = new Vendor();
+                    $vendor->user_id = $newUser->id;
+                    // Note: Address will need to be added later by the vendor
+                    $vendor->approval_status = 'pending';
+                    $vendor->save();
+                }
                 
                 Auth::login($newUser);
                 return response()->json([

@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Services\GoogleCalendarService;
 
-class calenderController extends Controller
+class calendarController extends Controller
 {
       protected $calendar;
 
