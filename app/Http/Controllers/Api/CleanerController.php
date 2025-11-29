@@ -57,6 +57,15 @@ class CleanerController extends Controller
         ], 200);
     }
 
+    public function getCleanersByVendor()
+    {
+        $cleaners = Cleaner::where('vendor_id', Auth::id())->paginate(10);
+        return response()->json([
+            'message' => 'Cleaners retrieved successfully',
+            'cleaners' => $cleaners
+        ], 200);
+    }
+
     public function availableCleaners()
     {
         $cleaners = Cleaner::where('vendor_id', Auth::id())->where('status', 'active')->get();

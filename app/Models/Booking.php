@@ -10,7 +10,7 @@ class Booking extends Model
         'customer_id',
         'package_id',
         'cleaner_id',
-        'booking_date',
+        'booking_date_time',
         'status',
         'total_price',
     ] ;

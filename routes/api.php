@@ -1,22 +1,47 @@
 <?php
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AddonController;
 use App\Http\Controllers\Api\StripeController;
+use App\Http\Controllers\Api\GoogleController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\CleanerController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\Auth\AuthController;
+use App\Http\Controllers\Api\calenderController;
 use App\Http\Controllers\Api\Admin\AdminController;
 use App\Http\Controllers\Api\Vendor\VendorController;
 use App\Http\Controllers\Api\Customer\CustomerController;
+use App\Http\Controllers\Api\Auth\ForgotPasswordController;
+use App\Http\Controllers\Api\Auth\EmailVerificationController;
 
+Route::group(["controller" => AuthController::class], function (){
+    Route::post('vendor/register', 'registerVendor');
+    Route::post('customer/register', 'registerCustomer');
+    Route::post('register/verify', 'verifyRegistration');
+    
+});
 
-Route::post('/register', [AuthController::class, 'register']);
 // Public routes for authentication
 Route::post('/login', [AuthController::class, 'login']);
+
+// Google OAuth routes with web middleware for session support
+Route::group(['controller' => GoogleController::class, 'middleware' => 'web'], function () {
+    Route::get('/auth/google/redirect/customer', 'redirectToGoogle')->name('google.redirect.customer');
+    Route::get('/auth/google/redirect/vendor', 'redirectToGoogle')->name('google.redirect.vendor');
+    Route::get('/auth/google/callback', 'handleGoogleCallback')->name('google.callback');
+});
+
+// Email Verification Routes
+Route::post('/email/send-verification-code', [EmailVerificationController::class, 'sendVerificationCode']);
+Route::post('/email/verify', [EmailVerificationController::class, 'verifyEmail']);
+
+// Password Reset Routes
+Route::post('/password/email', [ForgotPasswordController::class, 'sendResetLinkEmail']);
+Route::post('/password/reset', [ForgotPasswordController::class, 'resetPassword']);
 
 // Protected routes requiring authentication
 Route::group(['middleware' => 'auth:sanctum'], function () {
@@ -56,7 +81,8 @@ Route::middleware(['auth:sanctum', 'role:vendor'])->group(function () {
         Route::post('vendor/add/cleaner', 'create')->name('createCleaner');
         Route::put('vendor/update/cleaner/{cleaner}', 'update')->name('updateCleaner');
         Route::delete('vendor/remove/cleaner/{cleaner}', 'delete')->name('deleteCleaner');
-        Route::post('vendor/bookings/{booking_id}/assign-cleaner','assignCleaners')->name('assignCleaners');
+        Route::get('vendor/cleaners', 'getCleanersByVendor')->name('getCleaners');
+        Route::post('vendor/bookings/{booking_id}/assign-cleaner', 'assignCleaners')->name('assignCleaners');
     });
     Route::group(['controller' => BookingController::class], function () {
         // Route::get('vendor/bookings', 'index');
@@ -132,5 +158,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::put('vendor/update/cleaner/{cleaner}', 'update')->name('updateCleaner');
         Route::delete('vendor/remove/cleaner/{cleaner}', 'delete')->name('deleteCleaner');
         Route::post('vendor/bookings/{booking_id}/assign-cleaner','assignCleaners')->name('assignCleaners');
-    });             
+    });
+    // routes for testing
+    Route::post('/appointments', [calenderController::class, 'createAppointment']);             
 });

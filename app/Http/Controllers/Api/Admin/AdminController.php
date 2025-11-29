@@ -13,4 +13,7 @@ class AdminController extends Controller
     {
         return "Admin Dashboard";
     }
+    // public function approveVendor(Request $request)
+    // {
+    // }
 }
