@@ -7,13 +7,16 @@ use App\Models\User;
 use App\Models\Cleaner;
 use App\Models\Package;
 use App\Models\Booking;
+use App\Models\Transaction;
 use Illuminate\Http\Request;
+use App\Services\StripeService;
 use App\Notifications\BookingStatus;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Controller;
 use App\Notifications\BookingCreated;
-use App\Notifications\CustomerBookedPackage;
 use App\Notifications\DeliveryRequest;
+use App\Notifications\CustomerBookedPackage;
+
 
 
 class BookingController extends Controller
@@ -178,35 +181,47 @@ class BookingController extends Controller
     public function cancelBooking(Request $request, $bookingId)
     {
         $user = Auth::user();
-        if ($user->role == 'customer') {
-            $booking = Booking::findOrFail($bookingId);
-            $booking->status = 'cancelled';
-            $booking->notes = 'Customer cancelled the booking';
-            $booking->update();
-            $vendor_id = $booking->package->vendor_id;
-            $vendor = User::findOrFail($vendor_id);
-            $vendor->notify(new BookingStatus($booking, 'cancelled'));
-            return response()->json([
-                'message' => 'Booking cancelled successfully',
-                'booking' => $booking,
-            ], 200);
-        } else if ($user->role == 'vendor') {
-            $booking = Booking::where('vendor_id', $user->id)->findOrFail($bookingId);
-            $booking->status = 'cancelled';
-            $booking->notes = 'Vendor cancelled the booking';
-            $booking->update();
-            $customer_id = $booking->customer_id;
-            $customer = User::findOrFail($customer_id);
-            $customer->notify(new BookingStatus($booking, 'cancelled'));
-            return response()->json([
-                'message' => 'Booking cancelled successfully',
-                'booking' => $booking,
-            ], 200);
-        } else {
-            return response()->json([
-                'message' => 'Unauthorized'
-            ], 401);
+        $booking = Booking::findOrFail($bookingId);
+
+        // Only customer who booked OR vendor assigned can cancel
+        if ($user->role == 'customer' && $booking->customer_id != $user->id) {
+            return response()->json(['message' => 'Unauthorized'], 401);
         }
+
+        if ($user->role == 'vendor' && $booking->vendor_id != $user->id) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        // Check if booking was already paid
+        $transaction = Transaction::where('booking_id', $bookingId)->first();
+
+        if ($transaction && $transaction->status === 'paid') {
+            
+            // Refund 90% to customer, platform keeps 10%
+            (new StripeService())->processCancellationRefund($transaction); // Fixed syntax error
+        }
+
+        // Update booking status
+        $booking->status = 'cancelled';
+        $booking->notes = ($user->role == 'customer')
+            ? 'Customer cancelled the booking'
+            : 'Vendor cancelled the booking';
+
+        $booking->save();
+
+        // Notify opposite party
+        if ($user->role == 'customer') {
+            $vendor = User::find($booking->vendor_id);
+            if ($vendor) $vendor->notify(new \App\Notifications\BookingStatus($booking, 'cancelled'));
+        } else {
+            $customer = User::find($booking->customer_id);
+            if ($customer) $customer->notify(new \App\Notifications\BookingStatus($booking, 'cancelled'));
+        }
+
+        return response()->json([
+            'message' => 'Booking cancelled successfully. Refund processed.',
+            'booking' => $booking,
+        ], 200);
     }
 
     public function getBookings()
@@ -264,4 +279,5 @@ class BookingController extends Controller
            'booking' => $booking,
        ], 200);
     }
+
 }

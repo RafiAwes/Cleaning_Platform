@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Exception;
+use Stripe\Refund;
 use Stripe\Stripe;
 use Stripe\Account;
 use Stripe\Transfer;
@@ -166,6 +167,43 @@ class StripeService
         $booking->save();
 
         return $transfer;
+    }
+
+       
+    public function processCancellationRefund(Transaction $transaction)
+    {
+        try {
+            // Amount customer will receive (90%)
+            $refundAmount = intval($transaction->total_amount * 0.90);
+
+            // Create refund in Stripe
+            $stripeRefund = Refund::create([
+                'charge' => $transaction->charge_id,
+                'amount' => $refundAmount, // in cents
+            ]);
+
+            // Update transaction record
+            $transaction->refund_amount = $refundAmount;
+            $transaction->status = 'refunded';
+            $transaction->save();
+
+            return $stripeRefund;
+
+        } catch (Exception $e) {
+            throw new Exception("Refund Failed: " . $e->getMessage());
+        }
+    }
+    public function refundCharge(string $chargeId, int $amount)
+    {
+        try {
+            $refund = Refund::create([
+                'charge' => $chargeId,
+                'amount' => $amount,
+            ]);
+            return $refund;
+        } catch (Exception $e) {
+            throw new Exception("Refund Failed: " . $e->getMessage());
+        }
     }
 
 }
