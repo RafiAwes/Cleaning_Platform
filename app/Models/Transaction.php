@@ -27,5 +27,8 @@ class Transaction extends Model
     {
         return $this->belongsTo(Vendor::class);
     }
-    
+    // public function paymentIntent()
+    // {
+    //     return $this->belongsTo(PaymentIntent::class);
+    // }
 }

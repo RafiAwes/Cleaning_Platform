@@ -2,16 +2,18 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\AddonController;
+use App\Http\Controllers\Api\GoogleController;
+use App\Http\Controllers\Api\StripeController;
+use App\Http\Controllers\Api\BookingController;
+use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Admin\AdminController;
 use App\Http\Controllers\Api\Vendor\VendorController;
 use App\Http\Controllers\Api\Customer\CustomerController;
-use App\Http\Controllers\Api\GoogleController;
-use App\Http\Controllers\Api\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\Auth\ForgotPasswordController;
-use App\Http\Controllers\Api\BookingController;
-use App\Http\Controllers\Api\InventoryController;
-use App\Http\Controllers\Api\AddonController;
+use App\Http\Controllers\Api\Auth\EmailVerificationController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -29,6 +31,7 @@ Route::post('/register/customer', [AuthController::class, 'registerCustomer']);
 Route::post('/register/vendor', [AuthController::class, 'registerVendor']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/admin/login', [AuthController::class, 'adminLogin']);
+Route::post('/stripe/webhook', [StripeController::class, 'webhook']);
 
 // Google OAuth routes with web middleware for session support
 Route::group(['controller' => GoogleController::class, 'middleware' => 'web'], function () {
@@ -45,6 +48,9 @@ Route::post('/email/verify', [EmailVerificationController::class, 'verifyEmail']
 Route::post('/password/email', [ForgotPasswordController::class, 'sendResetLinkEmail']);
 Route::post('/password/reset', [ForgotPasswordController::class, 'resetPassword']);
 
+//availability date
+Route::get('/availability-date/{$packageId}', [BookingController::class, 'getAvailabilityDate'])->name('availability.date');
+
 // Protected routes requiring authentication
 Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::get('/user', function (Request $request) {
@@ -52,23 +58,49 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
     });
     Route::post('/logout', [AuthController::class, 'logout']);  
     
+    // stripe
+    Route::post('/stripe/connect', [StripeController::class, 'connectStripe']);
+    Route::get('/stripe/callback', [StripeController::class, 'callback']);
+    Route::post('/stripe/create-payment-intent', [StripeController::class, 'createPaymentIntent']);
+    Route::post('/delivery/confirm', [StripeController::class, 'confirmDelivery']);
+
     // Customer routes
     Route::group(['prefix' => 'customer', 'middleware' => 'role:customer'], function () {
         Route::get('/dashboard', [CustomerController::class, 'dashboard']);
         Route::post('/profile/update', [CustomerController::class, 'updateProfile']);
+        Route::group(['controller' => BookingController::class], function () {
+            Route::post('create/bookings', 'createBooking')->name('create.booking');
+            Route::post('cancel/bookings', 'cancelBooking')->name('cancel.booking');
+            Route::get('bookings', 'getBookings')->name('get.bookings');
+            Route::post('/ratings', 'rateBooking')->name('rate.booking');
+            
+        });
     });
     
     // Vendor routes
     Route::group(['prefix' => 'vendor', 'middleware' => 'role:vendor'], function () {
-        Route::get('/dashboard', [VendorController::class, 'dashboard']);
-        Route::post('/profile/update', [VendorController::class, 'updateOrCreate']);
-        Route::post('/address/update', [VendorController::class, 'updateAddress']);
+        Route::group(['controller' => VendorController::class], function () {
+            Route::get('/dashboard', 'dashboard');
+            Route::post('/profile/update', 'updateOrCreate');
+            Route::post('/address/update', 'updateAddress');
         
-        // Packages
-        Route::get('/packages', [VendorController::class, 'packages']);
-        Route::post('/packages', [VendorController::class, 'createPackage']);
-        Route::put('/packages/{package}', [VendorController::class, 'updatePackage']);
-        Route::delete('/packages/{package}', [VendorController::class, 'deletePackage']);
+            // Packages
+            Route::get('/packages', 'packages')->name('vendor.packages');
+            Route::post('/packages', 'createPackage');
+            Route::put('/packages/{package}', 'updatePackage');
+            Route::delete('/packages/{package}', 'deletePackage');
+
+            //cleaner
+            Route::post('/cleaners', 'addCleaner')->name('add.cleaner');
+            Route::get('/cleaners', 'getCleaners')->name('get.cleaners');
+
+            //target
+            Route::post('/booking/targets', 'bookingTarget')->name('add.target');
+            Route::get('/revenue/targets', 'revenueTargets')->name('get.targets');
+            Route::get('/targets', 'getTargets')->name('get.targets');
+            Route::get('/total', 'totalEarnings')->name('get.total');
+            Route::get('/transaction/history', 'transactionHistory')->name('get.transaction.history');
+        });
         
         // Services
         // Route::apiResource('services', ServiceController::class);
@@ -77,12 +109,15 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
         Route::apiResource('addons', AddonController::class);
         
         // Bookings
-        Route::get('/bookings', [BookingController::class, 'vendorBookings']);
-        Route::put('/bookings/{booking}/status', [BookingController::class, 'updateBookingStatus']);
-        
-        // Cleaners
-        Route::post('/cleaners', [VendorController::class, 'addCleaner']);
-        Route::get('/cleaners', [VendorController::class, 'getCleaners']);
+        Route::group(['controller' => BookingController::class], function () {
+            Route::get('/bookings', 'vendorBookings');
+            Route::get('/bookings', 'getBookings');
+            Route::get('/booking-details/{bookingId}', 'getBookingDetails')->name('booking.details');
+            Route::post('/booking/accept/{bookingId}', 'acceptBooking')->name('booking.accept');
+            Route::post('/booking/reject/{bookingId}', 'rejectBooking')->name('booking.reject');
+            Route::post('/booking/complete/{bookingId}', 'completeBooking')->name('booking.complete');
+            Route::post('/cancel/bookings/{bookingId}', 'cancelBooking')->name('booking.cancel');
+        });
         
         // Transactions
         // Route::get('/transactions', [TransactionController::class, 'vendorTransactions']);
@@ -103,18 +138,4 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
         Route::get('/vendors', [AdminController::class, 'getAllVendors']);
         Route::get('/customers', [AdminController::class, 'getAllCustomers']);
     });
-    
-    // Common routes for all authenticated users
-    Route::post('/bookings', [BookingController::class, 'store']);
-    Route::get('/bookings', [BookingController::class, 'index']);
-    Route::get('/bookings/{booking}', [BookingController::class, 'show']);
-    Route::delete('/bookings/{booking}', [BookingController::class, 'destroy']);
-    
-    // Route::apiResource('reviews', ReviewController::class)->only(['store', 'index']);
-    
-    // Route::post('/payment/process', [PaymentController::class, 'processPayment']);
-    // Route::get('/payment/history', [PaymentController::class, 'paymentHistory']);
-    
-    // Route::get('/notifications', [NotificationController::class, 'index']);
-    // Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
 });

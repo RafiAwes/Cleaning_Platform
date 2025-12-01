@@ -416,6 +416,17 @@ class VendorController extends Controller
         }   
     }
 
+    public function getTargets(){
+        $vendor = Auth::user();
+        $bookings_target = $vendor->bookings_target;
+        $revenue_target = $vendor->revenue_target;
+        return response()->json([
+            'success' => true,
+            'bookings_target' => $bookings_target,
+            'revenue_target' => $revenue_target,
+        ]);
+    }
+
     public function totalEarnings(){
         $vendor = Auth::user();
         $total_amount = Transaction::where('vendor_id', $vendor->id)->where('status', 'paid')->sum('vendor_amount');

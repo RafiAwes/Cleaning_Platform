@@ -54,7 +54,15 @@ class BookingController extends Controller
             'booking' => $booking,
         ], 201);
     }
-    
+
+    public function getBookingDetails($bookingId)
+    {
+        $booking = Booking::findOrFail($bookingId);
+        return response()->json([
+            'message' => 'Booking details retrieved successfully',
+            'booking' => $booking,
+        ]);
+    }
     public function acceptBooking(Request $request, $bookingId)
     {
         $booking = Booking::findOrFail($bookingId);
@@ -170,7 +178,7 @@ class BookingController extends Controller
     public function cancelBooking(Request $request, $bookingId)
     {
         $user = Auth::user();
-        if ($user->role != 'customer') {
+        if ($user->role == 'customer') {
             $booking = Booking::findOrFail($bookingId);
             $booking->status = 'cancelled';
             $booking->notes = 'Customer cancelled the booking';
@@ -221,5 +229,39 @@ class BookingController extends Controller
             'message' => 'Bookings retrieved successfully',
             'bookings' => $bookings
         ]);
+    }
+
+    public function rateBooking(Request $request, $bookingId)
+    {
+        $data = $request->validate([
+            'rating' => 'required|numeric|between:1,5',
+            'note' => 'nullable|string',
+        ]);
+
+       $booking = Booking::findOrFail($bookingId);
+
+       if (!$booking) {
+           return response()->json([
+               'message' => 'Booking not found'
+           ], 401);
+       }
+       if ($booking->status !== 'completed') {
+           return response()->json([
+               'message' => 'Booking not completed'
+           ], 401);
+       }
+       $booking->rating = $data['rating'];
+       $booking->note = $data['note'];
+       $booking->update();
+
+       $avgRating = $booking->package->bookings()->whereNotNull('ratings')->avg('ratings');
+       $package = $booking->package;
+       $package->ratings = $avgRating;
+       $package->update();
+
+       return response()->json([
+           'message' => 'Booking rated successfully',
+           'booking' => $booking,
+       ], 200);
     }
 }

@@ -19,6 +19,7 @@ return new class extends Migration
             $table->decimal('price', 10, 2)->nullable();
             $table->text('description')->nullable();
             $table->enum('status', ['active', 'inactive', 'discontinued'])->default('active');
+            $table->decimal('ratings', 10, 2)->nullable();
             $table->timestamps();
         });
     }

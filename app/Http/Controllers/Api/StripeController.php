@@ -2,144 +2,129 @@
 
 namespace App\Http\Controllers\Api;
 
-use Stripe\Account;
-use App\Models\User;
-use App\Models\Vendor;
-use App\Models\Booking;
-use App\Models\Transaction;
-use Illuminate\Http\Request;
-use App\Services\StripeService;
-use Laravel\Sanctum\HasApiTokens;
-use App\Services\PasswordService;
 use App\Http\Controllers\Controller;
+use App\Models\Booking;
+use App\Models\Vendor;
+use App\Services\StripeService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Transaction;
 
-
-/**
- * @property \App\Services\StripeService $stripe
- */
 class StripeController extends Controller
 {
     protected $stripe;
-    protected $password;
 
-    public function __construct(StripeService $stripe, PasswordService $password)
+    public function __construct(StripeService $stripe)
     {
         $this->stripe = $stripe;
-        $this->password = $password;
     }
 
+    /**
+     * Vendor presses "Connect Stripe"
+     */
     public function connectStripe(Request $request)
     {
-        $vendor = Auth::user();
-        if(!$vendor->stripe_id){
+        $vendor = Auth::user(); // assuming vendor is the authenticated user
+
+        if (!$vendor->stripe_id) {
             $account = $this->stripe->createConnectedAccount([
                 'email' => $vendor->email,
             ]);
-            $vendor->stripe_id = $account['id'];
+            $vendor->stripe_id = $account->id;
             $vendor->save();
         }
+
         $returnUrl = env('API_URL') . '/api/stripe/callback?vendor_id=' . $vendor->id;
         $refreshUrl = env('FRONTEND_URL') . '/vendor/stripe/refresh';
 
         $accountLink = $this->stripe->createAccountLink($vendor->stripe_id, $returnUrl, $refreshUrl);
 
         return response()->json([
-            'account_link' => $accountLink['url'],
+            'account_link' => $accountLink->url ?? $accountLink['url'] ?? null,
         ]);
     }
 
+    /**
+     * Stripe redirects here after onboarding completed
+     */
     public function callback(Request $request)
     {
-        $vendor = Vendor::find($request->vendor_id);
+        $vendor = Vendor::findOrFail($request->vendor_id);
         $account = $this->stripe->retrieveAccount($vendor->stripe_id);
-        if($account->details_submitted){
+
+        if (!empty($account->details_submitted)) {
             $vendor->is_stripe_onboarded = true;
             $vendor->save();
         }
 
-        return response()->json([
-            'message' => 'Stripe callback successful',
-        ]);
+        return response()->json(['message' => 'Stripe callback successful']);
     }
 
+    /**
+     * Create payment intent for a booking (customer payment)
+     */
     public function createPaymentIntent(Request $request)
     {
-        $request->validate([
-            'booking_id' => 'required',
-        ]);
-        
-        $booking = Booking::with('vendor')->findorfail($request->booking_id);
+        $request->validate(['booking_id' => 'required|exists:bookings,id']);
 
-        if (!$booking->vendor->stripe_onboarding_completed) {
-            return response()->json(['error' => 'Vendor is not connected to Stripe'], 400);
-        }
-          // Amount (convert to cents)
+        $booking = Booking::with('vendor')->findOrFail($request->booking_id);
+
+        // If vendor not onboarded, you can still accept payment to platform.
         $amount = intval($booking->total_price * 100);
         $currency = 'usd';
 
-        // Set metadata
         $metadata = [
             'booking_id' => $booking->id,
-            'vendor_id' => $booking->vendor->id
+            'vendor_id' => $booking->vendor_id,
         ];
 
-        // Create Payment Intent
-        $paymentIntent = $this->stripe->createPaymentIntent($amount, $currency, $metadata, uniqid());
+        $paymentIntent = $this->stripe->createPaymentIntent($amount, $currency, $metadata, uniqid('pi_'));
 
         return response()->json([
-            'clientSecret' => $paymentIntent->client_secret,
-            'paymentIntentId' => $paymentIntent->id
+            'clientSecret' => $paymentIntent->client_secret ?? $paymentIntent['client_secret'] ?? null,
+            'paymentIntentId' => $paymentIntent->id ?? $paymentIntent['id'] ?? null,
         ]);
     }
 
+    /**
+     * Stripe webhook for events; configure endpoint in Stripe Dashboard
+     *
+     * Note: validate signature if you configure a signing secret.
+     */
     public function webhook(Request $request)
     {
-        $event = $request->type;
-        $object = $request->data['object'];
+        // If using Stripe signature verification, verify it here.
+        $eventType = $request->input('type');
+        $object = $request->input('data.object');
 
-        if ($event == 'payment_intent.succeeded') {
-
+        if ($eventType === 'payment_intent.succeeded') {
             $paymentIntentId = $object['id'];
-            $bookingId = $object['metadata']['booking_id'];
-            $vendorId = $object['metadata']['vendor_id'];
+            $bookingId = $object['metadata']['booking_id'] ?? null;
 
-            $booking = Booking::find($bookingId);
-            $vendor = Vendor::find($vendorId);
+            if ($bookingId) {
+                $booking = Booking::find($bookingId);
+                if ($booking) {
+                    // Mark collected to platform (store payment_intent_id)
+                    $booking->payment_status = 'paid_to_platform';
+                    $booking->payment_intent_id = $paymentIntentId;
+                    $booking->save();
 
-            // Platform takes 10%
-            $total = $object['amount_received'];
-            $platformFee = intval($total * 0.10);
-            $vendorAmount = $total - $platformFee;
-
-            // Now transfer vendor amount
-            $transfer = $this->stripe->createTransfer(
-                $vendorAmount,
-                'usd',
-                $vendor->stripe_account_id,
-                $object['charges']['data'][0]['id'],
-                ['booking_id' => $bookingId],
-                uniqid()
-            );
-
-            // mark booking as paid
-            $booking->payment_status = 'paid';
-            $booking->save();
-            $transaction = Transaction::create([
-            'booking_id' => $bookingId,
-            'vendor_id' => $vendorId,
-            'payment_intent_id' => $paymentIntentId,
-            'charge_id' => $object['charges']['data'][0]['id'],
-            'transfer_id' => $transfer->id,
-            'total_amount' => $total,
-            'platform_fee' => $platformFee,
-            'vendor_amount' => $vendorAmount,
-            'status' => 'paid'
-        ]);
-
+                    // Optionally create a transaction record for collection (status = paid)
+                    Transaction::create([
+                        'booking_id' => $booking->id,
+                        'vendor_id' => $booking->vendor_id,
+                        'payment_intent_id' => $paymentIntentId,
+                        'charge_id' => $object['charges']['data'][0]['id'] ?? null,
+                        'transfer_id' => null,
+                        'total_amount' => $object['amount_received'] ?? $object['amount'] ?? 0,
+                        'platform_fee' => 0,
+                        'vendor_amount' => 0,
+                        'status' => 'paid',
+                    ]);
+                }
+            }
         }
 
         return response()->json(['status' => 'ok']);
-    
     }
 }

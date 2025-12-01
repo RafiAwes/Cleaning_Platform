@@ -66,6 +66,19 @@ class CleanerController extends Controller
         ], 200);
     }
 
+    public function cleanerDetails($id)
+    {
+        $cleaner = Cleaner::findOrFail($id)->where('vendor_id', Auth::id())->first();
+        $ongoingBooking = Booking::where('cleaner_id', $cleaner->id)->where('status', 'ongoing')->first();
+        $completedBooking = Booking::where('cleaner_id', $cleaner->id)->where('status', 'completed')->first();
+        return response()->json([
+            'message' => 'Cleaner details',
+            'ongoing_booking' => $ongoingBooking,
+            'completed_booking' => $completedBooking,
+            'cleaner' => $cleaner,
+        ], 200);
+    }
+
     public function availableCleaners()
     {
         $cleaners = Cleaner::where('vendor_id', Auth::id())->where('status', 'active')->get();

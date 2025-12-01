@@ -3,13 +3,22 @@
 namespace App\Http\Controllers\Api\Customer;
 
 use App\Models\User;
+use App\Models\Booking;
 use App\Models\Customer;
 use Illuminate\Http\Request;
+use App\Services\StripeService;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Controller;
 
 class CustomerController extends Controller
 {
+    protected $payout;
+
+    public function __construct(StripeService $payout)
+    {
+        $this->payout = $payout;
+    }
+    
     const CUSTOMER_IMAGE_PATH = 'images/customers';
     const DEFAULT_IMAGE_PATH = self::CUSTOMER_IMAGE_PATH . '/default.png';
     
@@ -101,6 +110,24 @@ class CustomerController extends Controller
         return response()->json([
             "message" => "Customer profile updated successfully",
             "user" => $currentUser
+        ]);
+    }
+
+    public function confirmDelivery(Request $request)
+    {
+        $request->validate(['booking_id' => 'required|exists:bookings,id']);
+
+        $booking = Booking::findOrFail($request->booking_id);
+
+        // (Optional) ensure requester is the booking customer:
+        // if (auth()->id() !== $booking->customer_id) { abort(403); }
+
+        $transfer = $this->payout->releaseVendorPayment($booking);
+
+        return response()->json([
+            'message' => 'Payment released to vendor',
+            'transfer_id' => $transfer->id ?? null,
+            'raw' => $transfer,
         ]);
     }
 }

@@ -13,15 +13,17 @@ class Booking extends Model
         'booking_date_time',
         'status',
         'total_price',
+        'ratings',
+        'notes',
     ] ;
 
     public function customer(){
         return $this->belongsTo(User::class, 'customer_id');
     }
 
-    public function service()
+    public function package()
     {
-        return $this->belongsTo(Service::class, 'service_id');
+        return $this->belongsTo(Package::class);
     }
 
     public function cleaner()
