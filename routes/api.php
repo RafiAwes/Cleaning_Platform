@@ -10,9 +10,11 @@ use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Admin\AdminController;
 use App\Http\Controllers\Api\Vendor\VendorController;
+use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\Customer\CustomerController;
 use App\Http\Controllers\Api\Auth\ForgotPasswordController;
 use App\Http\Controllers\Api\Auth\EmailVerificationController;
+
 
 
 /*
@@ -32,6 +34,7 @@ Route::post('/register/vendor', [AuthController::class, 'registerVendor']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/admin/login', [AuthController::class, 'adminLogin']);
 Route::post('/stripe/webhook', [StripeController::class, 'webhook']);
+Route::post('/categories', [categoryController::class, 'createCategory']);
 
 // Google OAuth routes with web middleware for session support
 Route::group(['controller' => GoogleController::class, 'middleware' => 'web'], function () {
@@ -137,5 +140,16 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
         Route::post('/vendors/{vendorId}/reject', [AdminController::class, 'rejectVendor']);
         Route::get('/vendors', [AdminController::class, 'getAllVendors']);
         Route::get('/customers', [AdminController::class, 'getAllCustomers']);
+        Route::get('/categories', [categoryController::class, 'categoryList']);
+        Route::group(['controller' => categoryController::class], function () {
+            Route::post('/edit/category/{category_id}', 'editCategory');
+            Route::post('/add/category', 'createCategory');
+            Route::post('/delete/category/{category_id}', 'deleteCategory');
+        });
+        Route::group(['controller' => AddonController::class], function () {
+            Route::post('/addons', 'createAddon');
+            Route::put('/addons/{addon}', 'updateAddon');
+            Route::delete('/addons/{addon}', 'deleteAddon');
+        });
     });
 });

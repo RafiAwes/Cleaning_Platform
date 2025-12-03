@@ -31,4 +31,14 @@ class vendor extends Model
     {
         return $this->hasMany(Package::class, 'vendor_id', 'id');
     }
+
+    public function services()
+    {
+        return $this->belongsToMany(Service::class);
+    }
+
+    public function categories()
+    {
+        return $this->belongsToMany(Category::class);
+    }
 }

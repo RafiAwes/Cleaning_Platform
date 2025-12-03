@@ -28,6 +28,10 @@ class Service extends Model
     public function package() {
         return $this->belongsTo(Package::class);
     }
+    
+    public function category() {
+        return $this->belongsTo(Category::class);
+    }
 
 
 

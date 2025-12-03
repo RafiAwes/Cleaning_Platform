@@ -58,7 +58,9 @@ class AuthController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
-            'address' => 'required|string',
+            'address' => 'required|string',        
+            'business_name' => 'required|string|max:255',
+            'service_category' => 'required',
             'password' => 'required|string|min:8|confirmed',
             'password_confirmation' => 'required|string|min:8',
             // 'role' => 'required|string|in:admin,user,author',
@@ -79,10 +81,14 @@ class AuthController extends Controller
         $user->created_at = Carbon::now();
         $user->save();
 
+        $categories = is_array($data['service_category']) ? $data['service_category'] : [$data['service_category']];
+
         // Create vendor profile with pending approval status
         $vendor = new Vendor();
-        $vendor->user_id = $user->id; // This references the user's id
-        $vendor->address = $data['address']; // Store address only in vendors table
+        $vendor->user_id = $user->id; 
+        $vendor->address = $data['address']; 
+        $vendor->business_name = $data['business_name'];
+        $vendor->service_category = json_encode($categories);     
         $vendor->approval_status = 'pending';
         $vendor->save();
 

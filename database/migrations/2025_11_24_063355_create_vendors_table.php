@@ -17,8 +17,11 @@ return new class extends Migration
             $table->string('phone')->nullable();
             $table->text('about')->nullable();
             $table->string('address')->nullable();
+            $table->string('business_name')->nullable();
+            $table->json('service_category')->nullable();
             $table->string('image_path')->nullable();
             $table->string('badge')->nullable();
+            $table->boolean('is_custom_pricing')->default(false);
             $table->integer('ratings')->nullable()->default(0);
             $table->time('from_time')->nullable();
             $table->time('to_time')->nullable();
