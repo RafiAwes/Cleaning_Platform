@@ -15,7 +15,8 @@ return new class extends Migration
             $table->id();            
             $table->string('title');
             $table->unsignedBigInteger('package_id');
-            $table->foreignId('category_id')->constrained('categories')->onDelete('cascade')->nullable();
+            // Use unsignedBigInteger for category_id and add constraint separately
+            $table->unsignedBigInteger('category_id')->nullable();
             $table->string('status')->default('active'); 
             $table->text('description');
             $table->decimal('price', 10, 2);

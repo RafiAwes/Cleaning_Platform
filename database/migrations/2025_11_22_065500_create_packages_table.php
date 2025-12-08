@@ -13,8 +13,10 @@ return new class extends Migration
     {
         Schema::create('packages', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('vendor_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('category_id')->constrained('categories')->onDelete('cascade')->nullable();
+            // Use unsignedBigInteger instead of foreignId to avoid automatic constraint creation
+            $table->unsignedBigInteger('vendor_id');
+            // Define the category_id column first
+            $table->unsignedBigInteger('category_id')->nullable();
             $table->string('title');
             $table->string('image')->nullable();
             $table->decimal('price', 10, 2)->nullable();
@@ -23,6 +25,16 @@ return new class extends Migration
             $table->decimal('ratings', 10, 2)->nullable();
             $table->timestamps();
         });
+        
+        // Add the foreign key constraints only if the referenced tables exist
+        Schema::table('packages', function (Blueprint $table) {
+            if (Schema::hasTable('users')) {
+                $table->foreign('vendor_id')->references('id')->on('users')->onDelete('cascade');
+            }
+            if (Schema::hasTable('categories')) {
+                $table->foreign('category_id')->references('id')->on('categories')->onDelete('cascade');
+            }
+        });
     }
 
     /**
@@ -30,6 +42,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Simply drop the table - Laravel will handle foreign key constraints automatically
         Schema::dropIfExists('packages');
     }
 };
