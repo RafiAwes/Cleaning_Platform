@@ -11,11 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('custom_prices', function (Blueprint $table) {
+        Schema::create('custom_bookings', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('customer_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('vendor_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('custom_category_id')->constrained()->onDelete('cascade');
-            $table->decimal('price', 10, 2)->nullable()->default(0.00);
+            $table->json('items')->nullable();
             $table->timestamps();
         });
     }
@@ -25,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('custom_prices');
+        Schema::dropIfExists('custom_bookings');
     }
 };

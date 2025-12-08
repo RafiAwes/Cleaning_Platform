@@ -45,6 +45,100 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Drop foreign key constraints from other tables before dropping users table
+        // Bookings table
+        if (Schema::hasTable('bookings')) {
+            Schema::table('bookings', function (Blueprint $table) {
+                if (Schema::hasColumn('bookings', 'customer_id')) {
+                    $table->dropForeign(['customer_id']);
+                }
+                if (Schema::hasColumn('bookings', 'vendor_id')) {
+                    $table->dropForeign(['vendor_id']);
+                }
+                if (Schema::hasColumn('bookings', 'cleaner_id')) {
+                    $table->dropForeign(['cleaner_id']);
+                }
+            });
+        }
+        
+        // Packages table
+        if (Schema::hasTable('packages')) {
+            Schema::table('packages', function (Blueprint $table) {
+                if (Schema::hasColumn('packages', 'vendor_id')) {
+                    $table->dropForeign(['vendor_id']);
+                }
+            });
+        }
+        
+        // Cleaner availabilities table
+        if (Schema::hasTable('cleaner_availabilities')) {
+            Schema::table('cleaner_availabilities', function (Blueprint $table) {
+                if (Schema::hasColumn('cleaner_availabilities', 'cleaner_id')) {
+                    $table->dropForeign(['cleaner_id']);
+                }
+            });
+        }
+        
+        // Vendors table
+        if (Schema::hasTable('vendors')) {
+            Schema::table('vendors', function (Blueprint $table) {
+                if (Schema::hasColumn('vendors', 'user_id')) {
+                    $table->dropForeign(['user_id']);
+                }
+            });
+        }
+        
+        // Messages table
+        if (Schema::hasTable('messages')) {
+            Schema::table('messages', function (Blueprint $table) {
+                if (Schema::hasColumn('messages', 'sender_id')) {
+                    $table->dropForeign(['sender_id']);
+                }
+                if (Schema::hasColumn('messages', 'receiver_id')) {
+                    $table->dropForeign(['receiver_id']);
+                }
+            });
+        }
+        
+        // Inventories table
+        if (Schema::hasTable('inventories')) {
+            Schema::table('inventories', function (Blueprint $table) {
+                if (Schema::hasColumn('inventories', 'vendor_id')) {
+                    $table->dropForeign(['vendor_id']);
+                }
+            });
+        }
+        
+        // Customers table
+        if (Schema::hasTable('customers')) {
+            Schema::table('customers', function (Blueprint $table) {
+                if (Schema::hasColumn('customers', 'user_id')) {
+                    $table->dropForeign(['user_id']);
+                }
+            });
+        }
+        
+        // Custom prices table
+        if (Schema::hasTable('custom_prices')) {
+            Schema::table('custom_prices', function (Blueprint $table) {
+                if (Schema::hasColumn('custom_prices', 'vendor_id')) {
+                    $table->dropForeign(['vendor_id']);
+                }
+            });
+        }
+        
+        // Custom bookings table
+        if (Schema::hasTable('custom_bookings')) {
+            Schema::table('custom_bookings', function (Blueprint $table) {
+                if (Schema::hasColumn('custom_bookings', 'customer_id')) {
+                    $table->dropForeign(['customer_id']);
+                }
+                if (Schema::hasColumn('custom_bookings', 'vendor_id')) {
+                    $table->dropForeign(['vendor_id']);
+                }
+            });
+        }
+        
         Schema::dropIfExists('users');
         Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');

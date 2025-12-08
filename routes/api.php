@@ -6,33 +6,22 @@ use App\Http\Controllers\Api\AddonController;
 use App\Http\Controllers\Api\GoogleController;
 use App\Http\Controllers\Api\StripeController;
 use App\Http\Controllers\Api\BookingController;
+use App\Http\Controllers\Api\ServiceController;
+use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Admin\AdminController;
 use App\Http\Controllers\Api\Vendor\VendorController;
-use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\Customer\CustomerController;
 use App\Http\Controllers\Api\Auth\ForgotPasswordController;
 use App\Http\Controllers\Api\Auth\EmailVerificationController;
 
 
-
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "api" middleware group. Make something great!
-|
-*/
-
 // Public routes
 Route::post('/register/customer', [AuthController::class, 'registerCustomer']);
 Route::post('/register/vendor', [AuthController::class, 'registerVendor']);
 Route::post('/login', [AuthController::class, 'login']);
-Route::post('/admin/login', [AuthController::class, 'adminLogin']);
+// Route::post('/admin/login', [AuthController::class, 'adminLogin']);
 Route::post('/stripe/webhook', [StripeController::class, 'webhook']);
 Route::post('/categories', [categoryController::class, 'createCategory']);
 
@@ -76,6 +65,8 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
             Route::post('cancel/bookings', 'cancelBooking')->name('cancel.booking');
             Route::get('bookings', 'getBookings')->name('get.bookings');
             Route::post('/ratings', 'rateBooking')->name('rate.booking');
+            Route::post('/add/custom/booking', 'addCustomBooking')->name('add.custom.booking');
+            Route::post('get/custom/booking', 'getCustomBooking')->name('get.custom.booking');
             
         });
     });
@@ -122,8 +113,10 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
             Route::post('/cancel/bookings/{bookingId}', 'cancelBooking')->name('booking.cancel');
         });
         
-        // Transactions
-        // Route::get('/transactions', [TransactionController::class, 'vendorTransactions']);
+        // custom service
+        Route::group(['controller' => ServiceController::class], function () {
+            Route::post('/create/custom-service', 'createCustomService')->name('custom.service.create');
+        });
         
         // Inventory
         Route::apiResource('inventory', InventoryController::class);

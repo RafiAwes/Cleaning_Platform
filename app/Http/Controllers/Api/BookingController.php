@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use Carbon\Carbon;
 use App\Models\User;
+use App\Models\Vendor;
 use App\Models\Cleaner;
 use App\Models\Package;
 use App\Models\Booking;
 use App\Models\Transaction;
+use App\Models\CustomPrice;
 use Illuminate\Http\Request;
+use App\Models\CustomBooking;
 use App\Services\StripeService;
 use App\Notifications\BookingStatus;
 use Illuminate\Support\Facades\Auth;
@@ -19,44 +22,158 @@ use App\Notifications\CustomerBookedPackage;
 
 
 
+
 class BookingController extends Controller
 {
-    public function createBooking(Request $request, $packageId)
+    public function addCustomBooking(Request $request)
+    {
+         $request->validate([
+            'items' => 'required|array',
+            'items.*.custom_price_id' => 'required|exists:custom_prices,id',
+            'items.*.qty' => 'required|integer|min:1',
+        ]);
+
+        $customBooking = CustomBooking::create([
+            'items' => $request->input('items'),
+        ]);
+    }
+
+    public function getCustomBooking(Request $request)
+    {
+        $customBooking = CustomBooking::findOrFail($request->custom_booking_id);
+        return response()->json($customBooking, 200);
+    }
+
+    private function createCustomBookingOrder(Request $request, $vendor, $user)
+    {
+        $customBooking = CustomBooking::findOrFail($request->custom_booking_id);
+
+        // Calculate total
+        $total = 0;
+        foreach ($customBooking->items as $item) {
+            $price = CustomPrice::findOrFail($item['custom_price_id']);
+            $total += $price->price * $item['qty'];
+        }
+
+        $booking = Booking::create([
+            'customer_id' => $user->id,
+            'cleaner_id' => null,
+            'package_id' => null,
+            'booking_date_time' => $request->date,
+            'is_custom' => true,
+            'address' => $request->location,
+            'status' => 'new',
+            'total_price' => $total,
+        ]);
+
+        // Notify vendor
+        $vendorUser = User::findOrFail($vendor->user_id);
+        $vendorUser->notify(new CustomerBookedPackage($booking, 'new'));
+
+        return response()->json([
+            'message' => 'Custom booking created successfully.',
+            'booking' => $booking,
+        ], 201);
+    }
+
+    private function createPackageBookingOrder(Request $request, $vendor, $user)
+    {
+        $package = Package::findOrFail($request->package_id);
+
+        $booking = Booking::create([
+            'customer_id' => $user->id,
+            'cleaner_id' => null,
+            'package_id' => $package->id,
+            'booking_date_time' => $request->date,
+            'is_custom' => false,
+            'address' => $request->location,
+            'status' => 'new',
+            'total_price' => $package->price,
+        ]);
+
+        // Notify vendor
+        $vendorUser = User::findOrFail($vendor->user_id);
+        $vendorUser->notify(new CustomerBookedPackage($booking, 'new'));
+
+        return response()->json([
+            'message' => 'Package booking created successfully.',
+            'booking' => $booking,
+        ], 201);
+    }
+
+    public function createBooking(Request $request)
     {
         $data = $request->validate([
-            // 'customer_id' => 'required|exists:users,id',
-            // 'cleaner_id' => 'nullable',
-            'package_id' => 'required|exists:packages,id',
+            'vendor_id' => 'required|exists:users,id',
+            'package_id' => 'nullable|exists:packages,id',
+            'custom_booking_id' => 'nullable|exists:custom_bookings,id',
             'date' => 'required|date|before:2100-01-01|after:2020-01-01',
-            // 'time' => 'required|string',
             'location' => 'required|string',
             'status' => 'required|string',
         ]);
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = Auth::user();
+
+        $vendor = Vendor::where('user_id', $data['vendor_id'])->firstOrFail();
+
+        if ($vendor->is_custom == true) {
+
+            if (!$data['custom_booking_id']) {
+                return response()->json([
+                    'message' => 'This vendor requires custom booking options.'
+                ], 422);
+            }
+
+            return $this->createCustomBookingOrder($request, $vendor, $user);
+        }
+
+        if (!$data['package_id']) {
+            return response()->json([
+                'message' => 'Package ID is required for non-custom vendors.'
+            ], 422);
+        }
+
+        return $this->createPackageBookingOrder($request, $vendor, $user);
+    }
+
+
+    // public function createBooking(Request $request, $packageId)
+    // {
+    //     $data = $request->validate([
+    //         // 'customer_id' => 'required|exists:users,id',
+    //         // 'cleaner_id' => 'nullable',
+    //         'package_id' => 'required|exists:packages,id',
+    //         'date' => 'required|date|before:2100-01-01|after:2020-01-01',
+    //         // 'time' => 'required|string',
+    //         'location' => 'required|string',
+    //         'status' => 'required|string',
+    //     ]);
+
+    //     /** @var \App\Models\User $user */
+    //     $user = Auth::user();
         
-        $booking = new Booking();
-        $booking->customer_id = $user->id;
-        // $booking->cleaner_id = null;
-        $booking->package_id = $packageId;
-        $booking->booking_date = $data['date'];
-        // $booking->time = $data['time'];
-        $booking->location = $data['location'];
-        $booking->status = $data['status'];
-        $booking->save();
+    //     $booking = new Booking();
+    //     $booking->customer_id = $user->id;
+    //     // $booking->cleaner_id = null;
+    //     $booking->package_id = $packageId;
+    //     $booking->booking_date = $data['date'];
+    //     // $booking->time = $data['time'];
+    //     $booking->location = $data['location'];
+    //     $booking->status = $data['status'];
+    //     $booking->save();
         
-        $user->notify(new BookingCreated($booking));
-        $vendor_id = $booking->package->vendor_id;
-        $vendor = User::findOrFail($vendor_id);
-        $vendor->notify(new CustomerBookedPackage($booking, 'new'));
+    //     $user->notify(new BookingCreated($booking));
+    //     $vendor_id = $booking->package->vendor_id;
+    //     $vendor = User::findOrFail($vendor_id);
+    //     $vendor->notify(new CustomerBookedPackage($booking, 'new'));
         
 
-        return response()->json([
-            'message' => 'Booking created successfully',
-            'booking' => $booking,
-        ], 201);
-    }
+    //     return response()->json([
+    //         'message' => 'Booking created successfully',
+    //         'booking' => $booking,
+    //     ], 201);
+    // }
 
     public function getBookingDetails($bookingId)
     {
