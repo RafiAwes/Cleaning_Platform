@@ -2,6 +2,8 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\FaqController;
+use App\Http\Controllers\Api\PageController;
 use App\Http\Controllers\Api\AddonController;
 use App\Http\Controllers\Api\GoogleController;
 use App\Http\Controllers\Api\StripeController;
@@ -24,6 +26,8 @@ Route::post('/login', [AuthController::class, 'login']);
 // Route::post('/admin/login', [AuthController::class, 'adminLogin']);
 Route::post('/stripe/webhook', [StripeController::class, 'webhook']);
 Route::post('/categories', [categoryController::class, 'createCategory']);
+Route::get('/page/contents', [PageController::class, 'indexPageContent']);
+Route::get('/faq/contents', [PageController::class, 'indexFaqContent']);
 
 // Google OAuth routes with web middleware for session support
 Route::group(['controller' => GoogleController::class, 'middleware' => 'web'], function () {
@@ -144,5 +148,8 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
             Route::put('/addons/{addon}', 'updateAddon');
             Route::delete('/addons/{addon}', 'deleteAddon');
         });
+        Route::POST('/add/page/content', [PageController::class, 'createPageContent'])->name('add.page.content');
+        Route::POST('/add/faq/content', [PageController::class, 'createFaqContent'])->name('add.faq.content');
+
     });
 });

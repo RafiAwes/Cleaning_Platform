@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Auth;
 
 class PageController extends Controller
 {
-    public function create(Request $request)
+    public function createPageContent(Request $request)
     {
         $request->validate([
             'title' => 'required|max:255',
@@ -32,13 +32,13 @@ class PageController extends Controller
         }
     }
 
-    public function index()
+    public function indexPageContent()
     {
         $pages = Page::all();
         return response()->json($pages, 200);
     }
 
-    public function createFAQ(Request $request)
+    public function createFaqContent(Request $request)
     {
         $request->validate([
             'question' => 'required|max:255',
@@ -59,7 +59,7 @@ class PageController extends Controller
         }
     }
 
-    public function indexFAQ()
+    public function indexFaqContent()
     {
         $faqs = FAQ::all();
         return response()->json($faqs, 200);
