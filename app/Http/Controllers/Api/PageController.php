@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Models\FAQ;
 use App\Models\Page;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
@@ -35,5 +36,32 @@ class PageController extends Controller
     {
         $pages = Page::all();
         return response()->json($pages, 200);
+    }
+
+    public function createFAQ(Request $request)
+    {
+        $request->validate([
+            'question' => 'required|max:255',
+            'answer' => 'required',
+        ]);
+        
+        if (Auth::role() == 'admin')
+        {
+            $faq = FAQ::updateOrCreate([
+                ['question' => $request->question],
+                ['answer' => $request->answer],
+            ]);
+            return response()->json($faq, 201);
+        }
+        else 
+        {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+    }
+
+    public function indexFAQ()
+    {
+        $faqs = FAQ::all();
+        return response()->json($faqs, 200);
     }
 }
