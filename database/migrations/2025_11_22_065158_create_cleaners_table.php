@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('phone');
             $table->string('image')->nullable();
-            $table->enum('status', ['active', 'assigned', 'completed'])->default('active');
+            $table->enum('status', ['active', 'assigned', 'completed'])->default('active')->nullable();
             $table->float('ratings')->default(0)->nullable();
             $table->timestamps();
         });

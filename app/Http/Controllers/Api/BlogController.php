@@ -54,7 +54,7 @@ class BlogController extends Controller
             $request->image->move(public_path('images/blog'), $imageName);
             $blog->image = 'images/blog/' . $imageName;
         }
-        $blog->update();
+        $blog->save();
         return redirect()->back()->with('message', 'Blog updated successfully');
     }
 

@@ -20,19 +20,26 @@ class CleanerController extends Controller
             'status' => 'required|in:active,assigned,completed'
         ]);
 
-        if (!File::exists(public_path('images/cleaners'))){
+        if (!File::exists(public_path('images/cleaners')))
+        {
              File::makeDirectory(public_path('images/cleaners'), 0777, true, true);
         }
 
         $imageName = null;
-        if ($request->hasFile('image')) {
+        if ($request->hasFile('image')) 
+        {
             $imageName = time() . '.' . $request->image->getClientOriginalName();
             $request->image->move(public_path('images/cleaners'), $imageName);
         }
-           
-        $cleaner = Cleaner::create($data);
-        $cleaner->image = $request->file('image')->store('cleaners', 'public');
+
+        $cleaner = new Cleaner();
+        $cleaner->name = $request->name;
+        $cleaner->phone = $request->phone;
+        $cleaner->image = $imageName;
+        $cleaner->status = "active";
+        $cleaner->vendor_id = Auth::id();
         $cleaner->save();
+
         return response()->json([
             'message' => 'Cleaner created successfully',
             'cleaner' => $cleaner
@@ -41,18 +48,31 @@ class CleanerController extends Controller
 
     public function update(Request $request, $id)
     {
-        $cleaner = Cleaner::findOrFail($id);
         $data = $request->validate([
             'name' => 'required|string',
             'phone' => 'required|string',
             'image' => 'nullable',
             'status' => 'required|in:active,assigned,completed'
         ]);
-        $cleaner->update($data);
-        if ($request->file('image')) {
-            $cleaner->image = $request->file('image')->store('cleaners', 'public');
+        if (!File::exists(public_path('images/cleaners')))
+        {
+            File::makeDirectory(public_path('images/cleaners'), 0777, true, true);
         }
+        
+        $imageName = null;
+        if ($request->hasFile('image')) 
+        {
+            $imageName = time() . '.' . $request->image->getClientOriginalName();
+            $request->image->move(public_path('images/cleaners'), $imageName);
+        }
+        
+        $cleaner = Cleaner::findOrFail($id);
+        $cleaner->name = $request->name;
+        $cleaner->phone = $request->phone;
+        $cleaner->image = $imageName;
+        $cleaner->status = $request->status;
         $cleaner->save();
+
         return response()->json([
             'message' => 'Cleaner updated successfully',
             'cleaner' => $cleaner
