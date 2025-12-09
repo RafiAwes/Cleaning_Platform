@@ -6,6 +6,7 @@ use App\Models\Booking;
 use App\Models\Cleaner;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Auth;
 
 class CleanerController extends Controller
@@ -19,6 +20,16 @@ class CleanerController extends Controller
             'status' => 'required|in:active,assigned,completed'
         ]);
 
+        if (!File::exists(public_path('images/cleaners'))){
+             File::makeDirectory(public_path('images/cleaners'), 0777, true, true);
+        }
+
+        $imageName = null;
+        if ($request->hasFile('image')) {
+            $imageName = time() . '.' . $request->image->getClientOriginalName();
+            $request->image->move(public_path('images/cleaners'), $imageName);
+        }
+           
         $cleaner = Cleaner::create($data);
         $cleaner->image = $request->file('image')->store('cleaners', 'public');
         $cleaner->save();
