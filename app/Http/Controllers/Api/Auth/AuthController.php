@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers\Api\Auth;
 
+use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Services\EmailVerificationService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
-use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
-use Carbon\Carbon;
-use App\Services\EmailVerificationService;
 
 class AuthController extends Controller
 {
@@ -20,27 +20,65 @@ class AuthController extends Controller
         $this->emailVerificationService = $emailVerificationService;
     }
 
-    public function registerCustomer(Request $request)
+    public function register(Request $request)
     {
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'password_confirmation' => 'required|string|min:8',
-            // 'role' => 'required|string|in:admin,user,author',
+            'role' => 'required|string|in:customer,vendor',
+            'address' => 'required_if:role,vendor|string',
+            'business_name' => 'required_if:role,vendor|string|max:255',
+            'service_category' => 'required_if:role,vendor',
+            'nid' => 'required_if:role,vendor', // National ID for vendors
+            'pob' => 'required_if:role,vendor', // Proof of Business for vendors
         ]);
+
+        $type = $data['role'];
+        if ($type === 'vendor') {
+
+            // path for nid
+            $nid_path = request()->hasFile('nid') ? request()->file('nid')->store('documents/nid', 'public') : null;
+            // path for proof of business
+            $pob_path = request()->hasFile('pob') ? request()->file('pob')->store('documents/pob', 'public') : null;
+            
+            $user = new User;
+            $user->name = $data['name'];
+            $user->email = $data['email'];
+            // Note: Not storing address in users table for vendors
+            $user->password = Hash::make($data['password']);
+            $user->role = 'vendor';
+            $user->created_at = Carbon::now();
+            $user->save();
+
+            $categories = is_array($data['service_category']) ? $data['service_category'] : [$data['service_category']];
+
+            // Create vendor profile with pending approval status
+            $vendor = new Vendor;
+            $vendor->user_id = $user->id;
+            $vendor->address = $data['address'];
+            $vendor->business_name = $data['business_name'];
+            $vendor->service_category = json_encode($categories);
+            $vendor->approval_status = 'pending';
+            $vendor->save();
+
+            // Send verification code
+            $this->emailVerificationService->sendVerificationCode($user);
+
+        }
         $matchPassword = $data['password'] === $data['password_confirmation'];
-        if (!$matchPassword) {
+        if (! $matchPassword) {
             throw ValidationException::withMessages([
                 'password' => 'The password does not match.',
             ]);
         }
-        
-        $user = new User();
+
+        $user = new User;
         $user->name = $data['name'];
         $user->email = $data['email'];
         $user->password = Hash::make($data['password']);
-        $user->role = "customer";
+        $user->role = 'customer';
         $user->created_at = Carbon::now();
         $user->save();
 
@@ -58,7 +96,7 @@ class AuthController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
-            'address' => 'required|string',        
+            'address' => 'required|string',
             'business_name' => 'required|string|max:255',
             'service_category' => 'required',
             'password' => 'required|string|min:8|confirmed',
@@ -66,34 +104,11 @@ class AuthController extends Controller
             // 'role' => 'required|string|in:admin,user,author',
         ]);
         $matchPassword = $data['password'] === $data['password_confirmation'];
-        if (!$matchPassword) {
+        if (! $matchPassword) {
             throw ValidationException::withMessages([
                 'password' => 'The password does not match.',
             ]);
         }
-        
-        $user = new User();
-        $user->name = $data['name'];
-        $user->email = $data['email'];
-        // Note: Not storing address in users table for vendors
-        $user->password = Hash::make($data['password']);
-        $user->role = "vendor";
-        $user->created_at = Carbon::now();
-        $user->save();
-
-        $categories = is_array($data['service_category']) ? $data['service_category'] : [$data['service_category']];
-
-        // Create vendor profile with pending approval status
-        $vendor = new Vendor();
-        $vendor->user_id = $user->id; 
-        $vendor->address = $data['address']; 
-        $vendor->business_name = $data['business_name'];
-        $vendor->service_category = json_encode($categories);     
-        $vendor->approval_status = 'pending';
-        $vendor->save();
-
-        // Send verification code
-        $this->emailVerificationService->sendVerificationCode($user);
 
         return response()->json([
             'message' => 'Registration successful. Your account is pending admin approval. Please check your email for verification code.',
@@ -112,7 +127,7 @@ class AuthController extends Controller
 
         $result = $this->emailVerificationService->verifyEmail($user, $data['verification_code']);
 
-        if (!$result['success']) {
+        if (! $result['success']) {
             return response()->json([
                 'message' => $result['message'],
             ], 422);
@@ -137,10 +152,10 @@ class AuthController extends Controller
 
         $user = User::where('email', $data['email'])->first();
 
-        if (!$user || !Hash::check($data['password'], $user->password)) {
-           throw ValidationException::withMessages([
-               'email' => 'The provided credentials are incorrect.',
-           ]);
+        if (! $user || ! Hash::check($data['password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'email' => 'The provided credentials are incorrect.',
+            ]);
         }
 
         // Check if email is verified
@@ -158,7 +173,7 @@ class AuthController extends Controller
                     'message' => 'Your vendor account is pending admin approval.',
                 ], 403);
             }
-            
+
             if ($vendor && $vendor->approval_status === 'rejected') {
                 return response()->json([
                     'message' => 'Your vendor account has been rejected.',

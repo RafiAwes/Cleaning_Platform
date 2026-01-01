@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\AddonController;
 use App\Http\Controllers\Api\GoogleController;
 use App\Http\Controllers\Api\StripeController;
 use App\Http\Controllers\Api\BookingController;
+use App\Http\Controllers\Api\CleanerController;
 use App\Http\Controllers\Api\ServiceController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\InventoryController;
@@ -118,6 +119,11 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
             Route::post('/cancel/bookings/{bookingId}', 'cancelBooking')->name('booking.cancel');
         });
         
+        Route::group(['controller' => CleanerController::class], function () {
+            Route::post('/add/cleaners', 'addCleaner')->name('add.cleaner');
+            Route::get('/get/cleaners/{vendor_id}', 'getCleaners')->name('get.cleaners');
+        });
+
         // custom service
         Route::group(['controller' => ServiceController::class], function () {
             Route::post('/create/custom-service', 'createCustomService')->name('custom.service.create');

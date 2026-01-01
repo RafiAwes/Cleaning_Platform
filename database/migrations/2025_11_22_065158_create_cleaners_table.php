@@ -13,12 +13,21 @@ return new class extends Migration
     {
         Schema::create('cleaners', function (Blueprint $table) {
             $table->id();
+            // Use unsignedBigInteger instead of foreignId to avoid automatic constraint creation
+            $table->unsignedBigInteger('vendor_id');
             $table->string('name');
             $table->string('phone');
             $table->string('image')->nullable();
             $table->enum('status', ['active', 'assigned', 'completed'])->default('active')->nullable();
             $table->float('ratings')->default(0)->nullable();
             $table->timestamps();
+        });
+        
+        // Add the foreign key constraint only if the vendors table exists
+        Schema::table('cleaners', function (Blueprint $table) {
+            if (Schema::hasTable('vendors')) {
+                $table->foreign('vendor_id')->references('id')->on('vendors')->onDelete('cascade');
+            }
         });
     }
 
@@ -27,6 +36,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Simply drop the table - Laravel will handle foreign key constraints automatically
         Schema::dropIfExists('cleaners');
     }
 };

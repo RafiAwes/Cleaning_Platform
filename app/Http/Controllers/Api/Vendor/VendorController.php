@@ -174,21 +174,29 @@ class VendorController extends Controller
             'addons.*.addon_id' => 'exists:addons,id',
             'addons.*.price' => 'numeric',
         ]);
+
+        //create image direcatory if not exists
+        if (!File::exists(public_path('images/packages'))) {
+            File::makeDirectory(public_path('images/packages'), 0755, true);
+        }
+        // Handle image upload
+        $imageName = null;
+        if ($request->hasFile('image')) {
+            $imageName = time() . '_' . Str::random(10) . '.' . $request->image->getClientOriginalExtension();
+            $request->image->move(public_path('images/packages'), $imageName);
+        }
         
         $package = new Package();
         $package->vendor_id = $user->id;
+        if ($imageName) {
+            $package->image = $imageName;
+        }
         $package->title = $data['title'];
         $package->description = $data['description'];
         $package->price = $data['price'];
         $package->save();
 
-        // Handle image upload
-        if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('packages', 'public');
-            $package->image = $imagePath;
-            $package->save();
-        }
-
+       
         // Process services
         foreach ($data['services'] as $serviceData) {
            $service = new Service();

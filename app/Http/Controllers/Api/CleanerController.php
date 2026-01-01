@@ -8,27 +8,29 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class CleanerController extends Controller
 {
-    public function create(Request $request)
+    public function addCleaner(Request $request)
     {
         $data = $request->validate([
             'name' => 'required|string',
             'phone' => 'required|string',
-            'image' => 'nullable',
-            'status' => 'required|in:active,assigned,completed'
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'status' => 'in:active,assigned,completed'
         ]);
 
-        if (!File::exists(public_path('images/cleaners')))
-        {
-             File::makeDirectory(public_path('images/cleaners'), 0777, true, true);
+        // Create directory if it doesn't exist with proper permissions
+        if (!File::exists(public_path('images/cleaners'))) {
+             File::makeDirectory(public_path('images/cleaners'), 0755, true, true);
         }
 
         $imageName = null;
-        if ($request->hasFile('image')) 
-        {
-            $imageName = time() . '.' . $request->image->getClientOriginalName();
+        if ($request->hasFile('image')) {
+            // Generate a unique filename to prevent conflicts
+            $imageName = time() . '_' . Str::random(10) . '.' . $request->image->getClientOriginalExtension();
+            // Store the image using Laravel's built-in method for better security
             $request->image->move(public_path('images/cleaners'), $imageName);
         }
 
@@ -51,25 +53,30 @@ class CleanerController extends Controller
         $data = $request->validate([
             'name' => 'required|string',
             'phone' => 'required|string',
-            'image' => 'nullable',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'status' => 'required|in:active,assigned,completed'
         ]);
-        if (!File::exists(public_path('images/cleaners')))
-        {
-            File::makeDirectory(public_path('images/cleaners'), 0777, true, true);
+        
+        // Create directory if it doesn't exist with proper permissions
+        if (!File::exists(public_path('images/cleaners'))) {
+            File::makeDirectory(public_path('images/cleaners'), 0755, true, true);
         }
         
         $imageName = null;
-        if ($request->hasFile('image')) 
-        {
-            $imageName = time() . '.' . $request->image->getClientOriginalName();
+        if ($request->hasFile('image')) {
+            // Generate a unique filename to prevent conflicts
+            $imageName = time() . '_' . Str::random(10) . '.' . $request->image->getClientOriginalExtension();
+            // Store the image using Laravel's built-in method for better security
             $request->image->move(public_path('images/cleaners'), $imageName);
         }
         
         $cleaner = Cleaner::findOrFail($id);
         $cleaner->name = $request->name;
         $cleaner->phone = $request->phone;
-        $cleaner->image = $imageName;
+        // Only update image if a new one was uploaded
+        if ($imageName) {
+            $cleaner->image = $imageName;
+        }
         $cleaner->status = $request->status;
         $cleaner->save();
 
