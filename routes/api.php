@@ -16,7 +16,7 @@ Route::post('/register/vendor', [AuthController::class, 'registerVendor']);
 Route::post('/login', [AuthController::class, 'login']);
 // Route::post('/admin/login', [AuthController::class, 'adminLogin']);
 Route::post('/stripe/webhook', [StripeController::class, 'webhook']);
-Route::post('/categories', [categoryController::class, 'createCategory']);
+// Route::post('/categories', [categoryController::class, 'createCategory']);
 Route::get('/page/contents', [PageController::class, 'indexPageContent']);
 Route::get('/faq/contents', [PageController::class, 'indexFaqContent']);
 Route::GET('/blogs', [BlogController::class, 'index'])->name('list.blogs');
@@ -153,6 +153,12 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
             Route::POST('/blog', 'createBlog')->name('create.blog');
             Route::PUT('/blog/{id}', 'updateBlog')->name('update.blog');
             Route::DELETE('/blog/{id}', 'deleteBlog')->name('delete.blog');
+        });
+        Route::group(['controller' => CategoryController::class], function () {
+            Route::post('/create/category', 'createCategory');
+            Route::put('/category/{id}', 'editCategory');
+            Route::delete('/category/{id}', 'deleteCategory');
+            Route::GET('/category', 'categoryList');
         });
 
     });
