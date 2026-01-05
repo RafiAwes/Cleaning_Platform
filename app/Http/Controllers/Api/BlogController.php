@@ -2,66 +2,113 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Models\Blog;
-use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\File;
+use App\Http\Resources\BlogResource;
+use App\Models\Blog;
+use App\Services\BlogService;
+use Illuminate\Http\Request;
 
 class BlogController extends Controller
 {
-    public function createBlog(Request $request)
+    private BlogService $blogService;
+
+    public function __construct(BlogService $blogService)
     {
-        $request->validate([
-            'title' => 'required|max:255',
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-            'description' => 'required',
-        ]);
-
-        if (!File::exists(public_path('images/blog')))
-        {
-            File::makeDirectory(public_path('images/blog'), 0777, true, true);
-        }
-
-        $imageName = null;
-        if($request->hasFile('image'))
-        {
-            $imageName = time() . '.' . $request->image->getClientOriginalName();
-            $request->image->move(public_path('images/blog'), $imageName);
-        }
-
-        $blog = new Blog();
-        $blog->title = $request->title;
-        $blog->description = $request->description;
-        $blog->image = 'images/blog/' . $imageName;
-        $blog->save();
-        return redirect()->back()->with('message', 'Blog created successfully');
+        $this->blogService = $blogService;
     }
 
-    public function editBlog(Request $request, $id)
+    public function index(Request $request)
     {
-        $request->validate([
-            'title' => 'required|max:255',
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-            'description' => 'required',
-        ]);
+        $perPage = $request->query('per_page', 15);
+        $blogs = $this->blogService->getBlogs($perPage);
 
-        $blog = Blog::find($id);
-        $blog->title = $request->title;
-        $blog->description = $request->description;
-        if($request->hasFile('image'))
-        {
-            $imageName = time() . '.' . $request->image->getClientOriginalName();
-            $request->image->move(public_path('images/blog'), $imageName);
-            $blog->image = 'images/blog/' . $imageName;
+        return response()->json([
+            'success' => true,
+            'message' => 'Blogs retrieved successfully!',
+            'data' => BlogResource::collection(collect($blogs)),
+        ]);
+    }
+
+    public function createBlog(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'title' => 'required|max:255',
+                'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+                'description' => 'required',
+            ]);
+
+            $blog = $this->blogService->createBlog($validated, $request->file('image'));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Blog created successfully!',
+                'data' => new BlogResource($blog),
+            ]);
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error creating blog: '.$e->getMessage(),
+                'exception' => get_class($e),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+            ], 500);
         }
-        $blog->save();
-        return redirect()->back()->with('message', 'Blog updated successfully');
+    }
+
+    public function updateBlog(Request $request, $id)
+    {
+        try {
+            $blog = Blog::findOrFail($id);
+
+            // 1. Validation
+            // 'sometimes' means: if the field is present, validate it.
+            $validated = $request->validate([
+                'title' => 'sometimes|nullable|string|max:255',
+                'description' => 'sometimes|nullable|string',
+                'image' => 'sometimes|nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            ]);
+
+            // 2. Call Service
+            // We pass the validated array and the file (if it exists)
+            $updatedBlog = $this->blogService->updateBlog(
+                $blog,
+                $validated,
+                $request->file('image')
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Blog updated successfully!',
+                'data' => new BlogResource($updatedBlog),
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 400);
+        }
     }
 
     public function deleteBlog($id)
     {
         $blog = Blog::find($id);
-        $blog->delete();
-        return redirect()->back()->with('message', 'Blog deleted successfully');
+
+        if (! $blog) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Blog not found',
+            ], 404);
+        }
+
+        $this->blogService->deleteBlog($blog);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Blog deleted successfully',
+        ]);
     }
 }

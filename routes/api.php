@@ -2,22 +2,11 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\BlogController;
-use App\Http\Controllers\Api\PageController;
-use App\Http\Controllers\Api\AddonController;
-use App\Http\Controllers\Api\GoogleController;
-use App\Http\Controllers\Api\StripeController;
-use App\Http\Controllers\Api\BookingController;
-use App\Http\Controllers\Api\CleanerController;
-use App\Http\Controllers\Api\ServiceController;
-use App\Http\Controllers\Api\CategoryController;
-use App\Http\Controllers\Api\InventoryController;
-use App\Http\Controllers\Api\Auth\AuthController;
+use App\Http\Controllers\Api\{AddonController, BlogController, BookingController, CategoryController, CleanerController, GoogleController, InventoryController, PageController, ServiceController, StripeController};
+use App\Http\Controllers\Api\Auth\{AuthController, EmailVerificationController, ForgotPasswordController};
 use App\Http\Controllers\Api\Admin\AdminController;
 use App\Http\Controllers\Api\Vendor\VendorController;
 use App\Http\Controllers\Api\Customer\CustomerController;
-use App\Http\Controllers\Api\Auth\ForgotPasswordController;
-use App\Http\Controllers\Api\Auth\EmailVerificationController;
 
 
 
@@ -30,6 +19,7 @@ Route::post('/stripe/webhook', [StripeController::class, 'webhook']);
 Route::post('/categories', [categoryController::class, 'createCategory']);
 Route::get('/page/contents', [PageController::class, 'indexPageContent']);
 Route::get('/faq/contents', [PageController::class, 'indexFaqContent']);
+Route::GET('/blogs', [BlogController::class, 'index'])->name('list.blogs');
 
 // Google OAuth routes with web middleware for session support
 Route::group(['controller' => GoogleController::class, 'middleware' => 'web'], function () {
@@ -155,12 +145,14 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
             Route::put('/addons/{addon}', 'updateAddon');
             Route::delete('/addons/{addon}', 'deleteAddon');
         });
+
+
         Route::POST('/add/page/content', [PageController::class, 'createPageContent'])->name('add.page.content');
         Route::POST('/add/faq/content', [PageController::class, 'createFaqContent'])->name('add.faq.content');
         Route::group(['controller' => BlogController::class], function () {
-            Route::POST('/add/blog', 'createBlog')->name('add.blog');
-            Route::POST('/edit/blog/{blog_id}', 'editBlog')->name('edit.blog');
-            Route::POST('/delete/blog/{blog_id}', 'deleteBlog')->name('delete.blog');
+            Route::POST('/blog', 'createBlog')->name('create.blog');
+            Route::PUT('/blog/{id}', 'updateBlog')->name('update.blog');
+            Route::DELETE('/blog/{id}', 'deleteBlog')->name('delete.blog');
         });
 
     });
