@@ -11,8 +11,8 @@ use App\Http\Controllers\Api\Customer\CustomerController;
 
 
 // Public routes
-Route::post('/register/customer', [AuthController::class, 'registerCustomer']);
-Route::post('/register/vendor', [AuthController::class, 'registerVendor']);
+Route::post('/register/', [AuthController::class, 'register']);
+// Route::post('/register/vendor', [AuthController::class, 'registerVendor']);
 Route::post('/login', [AuthController::class, 'login']);
 // Route::post('/admin/login', [AuthController::class, 'adminLogin']);
 Route::post('/stripe/webhook', [StripeController::class, 'webhook']);
@@ -70,6 +70,8 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
     // Vendor routes
     Route::group(['prefix' => 'vendor', 'middleware' => 'role:vendor'], function () {
         Route::group(['controller' => VendorController::class], function () {
+
+            Route::post('/upload-business-documents', 'uploadBusinessDocuments');
             Route::get('/dashboard', 'dashboard');
             Route::post('/profile/update', 'updateOrCreate');
             Route::post('/address/update', 'updateAddress');

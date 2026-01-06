@@ -2,22 +2,23 @@
 
 namespace App\Http\Controllers\Api\Auth;
 
-use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Models\Vendor;
-use App\Services\EmailVerificationService;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\{Auth, Hash};
 use Illuminate\Validation\ValidationException;
+use App\Http\Controllers\Controller;
+use App\Models\{Document, User, Vendor};
+use App\Services\{EmailVerificationService, FileUploadService};
+use Carbon\Carbon;
 
 class AuthController extends Controller
 {
     protected $emailVerificationService;
+    protected FileUploadService $fileUploadService;
 
-    public function __construct(EmailVerificationService $emailVerificationService)
+    public function __construct(EmailVerificationService $emailVerificationService, FileUploadService $fileUploadService)
     {
         $this->emailVerificationService = $emailVerificationService;
+        $this->fileUploadService = $fileUploadService;
     }
 
     public function register(Request $request)
@@ -31,18 +32,18 @@ class AuthController extends Controller
             'address' => 'required_if:role,vendor|string',
             'business_name' => 'required_if:role,vendor|string|max:255',
             'service_category' => 'required_if:role,vendor',
-            'nid' => 'required_if:role,vendor', // National ID for vendors
-            'pob' => 'required_if:role,vendor', // Proof of Business for vendors
         ]);
+
+        $matchPassword = $data['password'] === $data['password_confirmation'];
+        if (! $matchPassword) {
+            throw ValidationException::withMessages([
+                'password' => 'The password does not match.',
+            ]);
+        }
 
         $type = $data['role'];
         if ($type === 'vendor') {
 
-            // path for nid
-            $nid_path = request()->hasFile('nid') ? request()->file('nid')->store('documents/nid', 'public') : null;
-            // path for proof of business
-            $pob_path = request()->hasFile('pob') ? request()->file('pob')->store('documents/pob', 'public') : null;
-            
             $user = new User;
             $user->name = $data['name'];
             $user->email = $data['email'];
@@ -66,12 +67,10 @@ class AuthController extends Controller
             // Send verification code
             $this->emailVerificationService->sendVerificationCode($user);
 
-        }
-        $matchPassword = $data['password'] === $data['password_confirmation'];
-        if (! $matchPassword) {
-            throw ValidationException::withMessages([
-                'password' => 'The password does not match.',
-            ]);
+            return response()->json([
+                'message' => 'Vendor registered successfully. Please verify your email.',
+                'user' => $user,
+            ], 201);
         }
 
         $user = new User;
@@ -91,30 +90,7 @@ class AuthController extends Controller
         ], 201);
     }
 
-    public function registerVendor(Request $request)
-    {
-        $data = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'address' => 'required|string',
-            'business_name' => 'required|string|max:255',
-            'service_category' => 'required',
-            'password' => 'required|string|min:8|confirmed',
-            'password_confirmation' => 'required|string|min:8',
-            // 'role' => 'required|string|in:admin,user,author',
-        ]);
-        $matchPassword = $data['password'] === $data['password_confirmation'];
-        if (! $matchPassword) {
-            throw ValidationException::withMessages([
-                'password' => 'The password does not match.',
-            ]);
-        }
-
-        return response()->json([
-            'message' => 'Registration successful. Your account is pending admin approval. Please check your email for verification code.',
-            'user_id' => $user->id,
-        ], 201);
-    }
+  
 
     public function verifyRegistration(Request $request)
     {

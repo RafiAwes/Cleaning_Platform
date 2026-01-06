@@ -13,6 +13,9 @@ return new class extends Migration
     {
         Schema::create('documents', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+            $table->string('nid')->nullable(); // national id
+            $table->string('pob')->nullable(); // proof of business
             $table->timestamps();
         });
     }
