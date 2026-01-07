@@ -2,11 +2,12 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\{AddonController, BlogController, BookingController, CategoryController, CleanerController, GoogleController, InventoryController, PageController, ServiceController, StripeController};
-use App\Http\Controllers\Api\Auth\{AuthController, EmailVerificationController, ForgotPasswordController};
 use App\Http\Controllers\Api\Admin\AdminController;
-use App\Http\Controllers\Api\Vendor\VendorController;
+use App\Http\Controllers\Api\Auth\{AuthController, EmailVerificationController, ForgotPasswordController};
 use App\Http\Controllers\Api\Customer\CustomerController;
+use App\Http\Controllers\Api\{AddonController, BlogController, BookingController, CategoryController, CleanerController, GoogleController, InventoryController, PageController, ServiceController, StripeController};
+use App\Http\Controllers\Api\Vendor\{PackageController, VendorController};
+
 
 
 
@@ -37,7 +38,7 @@ Route::post('/password/email', [ForgotPasswordController::class, 'sendResetLinkE
 Route::post('/password/reset', [ForgotPasswordController::class, 'resetPassword']);
 
 //availability date
-Route::get('/availability-date/{$packageId}', [BookingController::class, 'getAvailabilityDate'])->name('availability.date');
+Route::get('/availability-date/{packageId}', [BookingController::class, 'getAvailabilityDate'])->name('availability.date');
 
 // Protected routes requiring authentication
 Route::group(['middleware' => 'auth:sanctum'], function () {
@@ -75,12 +76,6 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
             Route::get('/dashboard', 'dashboard');
             Route::post('/profile/update', 'updateOrCreate');
             Route::post('/address/update', 'updateAddress');
-        
-            // Packages
-            Route::get('/packages', 'packages')->name('vendor.packages');
-            Route::post('/packages', 'createPackage');
-            Route::put('/packages/{package}', 'updatePackage');
-            Route::delete('/packages/{package}', 'deletePackage');
 
             //cleaner
             Route::post('/cleaners', 'addCleaner')->name('add.cleaner');
@@ -93,6 +88,14 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
             Route::get('/total', 'totalEarnings')->name('get.total');
             Route::get('/transaction/history', 'transactionHistory')->name('get.transaction.history');
         });
+
+        Route::group(['controller' => PackageController::class], function () {
+            // Packages
+            Route::get('/packages', 'packages')->name('vendor.packages');
+            Route::post('/packages', 'createPackage');
+            Route::put('/packages/{package}', 'updatePackage');
+            Route::delete('/packages/{package}', 'deletePackage');
+        });
         
         // Services
         // Route::apiResource('services', ServiceController::class);
@@ -103,7 +106,6 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
         // Bookings
         Route::group(['controller' => BookingController::class], function () {
             Route::get('/bookings', 'vendorBookings');
-            Route::get('/bookings', 'getBookings');
             Route::get('/booking-details/{bookingId}', 'getBookingDetails')->name('booking.details');
             Route::post('/booking/accept/{bookingId}', 'acceptBooking')->name('booking.accept');
             Route::post('/booking/reject/{bookingId}', 'rejectBooking')->name('booking.reject');
@@ -136,8 +138,8 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
         Route::post('/vendors/{vendorId}/reject', [AdminController::class, 'rejectVendor']);
         Route::get('/vendors', [AdminController::class, 'getAllVendors']);
         Route::get('/customers', [AdminController::class, 'getAllCustomers']);
-        Route::get('/categories', [categoryController::class, 'categoryList']);
-        Route::group(['controller' => categoryController::class], function () {
+        Route::get('/categories', [CategoryController::class, 'categoryList']);
+        Route::group(['controller' => CategoryController::class], function () {
             Route::post('/edit/category/{category_id}', 'editCategory');
             Route::post('/add/category', 'createCategory');
             Route::post('/delete/category/{category_id}', 'deleteCategory');

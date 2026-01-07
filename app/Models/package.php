@@ -2,12 +2,10 @@
 
 namespace App\Models;
 
-use App\Models\addon;
-use App\Models\service;
-use App\Models\Booking;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\{Booking, addon, service};
 
-class package extends Model
+class Package extends Model
 {
     protected $fillable = [
         'name', 'description', 'price', 'status', 'rating', 'image'
@@ -16,8 +14,8 @@ class package extends Model
     public function bookings() {
         return $this->hasMany(booking::class, 'package_id');
     }
-    public function addons() {
-        return $this->belongsToMany(addon::class, 'package_addons')->withPivot('price', 'id', 'package_id', 'addon_id')->withTimestamps();
+    public function packageaddons(){
+        return $this->hasMany(PackageAddon::class, 'package_id');
     }
 
     public function services() {

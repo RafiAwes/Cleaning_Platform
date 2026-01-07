@@ -13,9 +13,9 @@ return new class extends Migration
     {
         Schema::create('package_addons', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('package_id');
-            $table->unsignedBigInteger('addon_id');
-            $table->decimal('price', 10, 2)->nullable();
+            $table->foreignId('package_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('addon_id')->constrained()->cascadeOnDelete();
+            $table->decimal('price', 8, 2);
             $table->timestamps();
         });
     }

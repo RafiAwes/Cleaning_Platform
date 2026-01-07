@@ -11,8 +11,9 @@ class Addon extends Model
         'title',
     ];
 
-    public function packages()
+
+    public function packageaddons()
     {
-        return $this->belongsToMany(Package::class, 'package_addons')->withPivot('price', 'id', 'package_id', 'addon_id')->withTimestamps();
+        return $this->hasMany(PackageAddon::class, 'addon_id');
     }
 }

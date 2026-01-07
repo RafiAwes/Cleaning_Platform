@@ -141,21 +141,23 @@ class AuthController extends Controller
             ], 422);
         }
 
-        // Check if vendor is approved
-        if ($user->role === 'vendor') {
-            $vendor = $user->vendor;
-            if ($vendor && $vendor->approval_status === 'pending') {
-                return response()->json([
-                    'message' => 'Your vendor account is pending admin approval.',
-                ], 403);
-            }
+        //part of code that check if the vendor is approved
 
-            if ($vendor && $vendor->approval_status === 'rejected') {
-                return response()->json([
-                    'message' => 'Your vendor account has been rejected.',
-                ], 403);
-            }
-        }
+        // // Check if vendor is approved
+        // if ($user->role === 'vendor') {
+        //     $vendor = $user->vendor;
+        //     if ($vendor && $vendor->approval_status === 'pending') {
+        //         return response()->json([
+        //             'message' => 'Your vendor account is pending admin approval.',
+        //         ], 403);
+        //     }
+
+        //     if ($vendor && $vendor->approval_status === 'rejected') {
+        //         return response()->json([
+        //             'message' => 'Your vendor account has been rejected.',
+        //         ], 403);
+        //     }
+        // }
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
