@@ -7,13 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 class Service extends Model
 {
     protected $fillable = [
-        'name',
+        'title',
         'package',
         'slug',
         'status',
+        'description',
+        'price',
         // 'image_path',
-        // 'description',
-        // 'price',
     ];
 
     
@@ -32,12 +32,4 @@ class Service extends Model
     public function category() {
         return $this->belongsTo(Category::class);
     }
-
-
-
-    
-
-    
-    
-
 }

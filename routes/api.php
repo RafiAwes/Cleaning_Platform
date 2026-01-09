@@ -92,8 +92,8 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
         Route::group(['controller' => PackageController::class], function () {
             // Packages
             Route::get('/packages', 'packages')->name('vendor.packages');
-            Route::post('/packages', 'createPackage');
-            Route::put('/packages/{package}', 'updatePackage');
+            Route::post('/package/create', 'createPackage');
+            Route::put('/package/{package}', 'updatePackage');
             Route::delete('/packages/{package}', 'deletePackage');
         });
         

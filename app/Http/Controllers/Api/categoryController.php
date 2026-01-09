@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use Illuminate\Http\{JsonResponse, Request};
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Services\CategoryService;
 use App\Traits\ApiResponseTrait;
-use Illuminate\Http\Request;
 
 class categoryController extends Controller
 {
