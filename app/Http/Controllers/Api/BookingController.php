@@ -2,23 +2,13 @@
 
 namespace App\Http\Controllers\Api;
 
-use Carbon\Carbon;
-use App\Models\User;
-use App\Models\Vendor;
-use App\Models\Cleaner;
-use App\Models\Package;
-use App\Models\Booking;
-use App\Models\Transaction;
-use App\Models\CustomPrice;
 use Illuminate\Http\Request;
-use App\Models\CustomBooking;
-use App\Services\StripeService;
-use App\Notifications\BookingStatus;
 use Illuminate\Support\Facades\Auth;
+use App\Models\{Booking, Cleaner, CustomBooking, CustomPrice, Package, Transaction, User, Vendor};
+use App\Services\StripeService;
+use App\Notifications\{BookingCreated, BookingStatus, CustomerBookedPackage, DeliveryRequest};
 use App\Http\Controllers\Controller;
-use App\Notifications\BookingCreated;
-use App\Notifications\DeliveryRequest;
-use App\Notifications\CustomerBookedPackage;
+use Carbon\Carbon;
 
 
 
@@ -46,6 +36,7 @@ class BookingController extends Controller
 
     private function createCustomBookingOrder(Request $request, $vendor, $user)
     {
+
         $customBooking = CustomBooking::findOrFail($request->custom_booking_id);
 
         // Calculate total
@@ -61,7 +52,7 @@ class BookingController extends Controller
             'package_id' => null,
             'booking_date_time' => $request->date,
             'is_custom' => true,
-            'address' => $request->location,
+            'address' => $request->address,
             'status' => 'new',
             'total_price' => $total,
         ]);
@@ -86,7 +77,7 @@ class BookingController extends Controller
             'package_id' => $package->id,
             'booking_date_time' => $request->date,
             'is_custom' => false,
-            'address' => $request->location,
+            'address' => $request->address,
             'status' => 'new',
             'total_price' => $package->price,
         ]);
@@ -108,7 +99,7 @@ class BookingController extends Controller
             'package_id' => 'nullable|exists:packages,id',
             'custom_booking_id' => 'nullable|exists:custom_bookings,id',
             'date' => 'required|date|before:2100-01-01|after:2020-01-01',
-            'location' => 'required|string',
+            'address' => 'required|string',
             'status' => 'required|string',
         ]);
 
@@ -137,43 +128,6 @@ class BookingController extends Controller
         return $this->createPackageBookingOrder($request, $vendor, $user);
     }
 
-
-    // public function createBooking(Request $request, $packageId)
-    // {
-    //     $data = $request->validate([
-    //         // 'customer_id' => 'required|exists:users,id',
-    //         // 'cleaner_id' => 'nullable',
-    //         'package_id' => 'required|exists:packages,id',
-    //         'date' => 'required|date|before:2100-01-01|after:2020-01-01',
-    //         // 'time' => 'required|string',
-    //         'location' => 'required|string',
-    //         'status' => 'required|string',
-    //     ]);
-
-    //     /** @var \App\Models\User $user */
-    //     $user = Auth::user();
-        
-    //     $booking = new Booking();
-    //     $booking->customer_id = $user->id;
-    //     // $booking->cleaner_id = null;
-    //     $booking->package_id = $packageId;
-    //     $booking->booking_date = $data['date'];
-    //     // $booking->time = $data['time'];
-    //     $booking->location = $data['location'];
-    //     $booking->status = $data['status'];
-    //     $booking->save();
-        
-    //     $user->notify(new BookingCreated($booking));
-    //     $vendor_id = $booking->package->vendor_id;
-    //     $vendor = User::findOrFail($vendor_id);
-    //     $vendor->notify(new CustomerBookedPackage($booking, 'new'));
-        
-
-    //     return response()->json([
-    //         'message' => 'Booking created successfully',
-    //         'booking' => $booking,
-    //     ], 201);
-    // }
 
     public function getBookingDetails($bookingId)
     {

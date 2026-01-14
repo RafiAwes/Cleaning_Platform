@@ -101,4 +101,22 @@ class categoryController extends Controller
             return $this->errorResponse('Error retrieving categories: '.$e->getMessage(), 500);
         }
     }
+
+    /**
+     * Get all categories (public endpoint)
+     *
+     * @return JsonResponse
+     */
+    public function categoryListPublic(Request $request)
+    {
+        try {
+            // Get all categories without pagination for dropdown
+            $categories = $this->categoryService->getAllCategories();
+
+            return $this->successResponse($categories, 'Categories retrieved successfully!');
+
+        } catch (\Exception $e) {
+            return $this->errorResponse('Error retrieving categories: '.$e->getMessage(), 500);
+        }
+    }
 }

@@ -83,4 +83,9 @@ class CategoryService
         });
         return $query->latest()->paginate($perPage);
     }
+
+    public function getAllCategories()
+    {
+        return Category::select('id', 'name')->get();
+    }
 }

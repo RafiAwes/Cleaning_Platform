@@ -41,4 +41,9 @@ class vendor extends Model
     {
         return $this->belongsToMany(Category::class);
     }
+
+    public function documents()
+    {
+        return $this->hasOneThrough(Document::class, User::class, 'id', 'user_id', 'user_id', 'id');
+    }
 }

@@ -2,11 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Models\FAQ;
-use App\Models\Page;
 use Illuminate\Http\Request;
-use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use App\Models\{FAQ, Page};
+use App\Http\Controllers\Controller;
 
 
 class PageController extends Controller
@@ -15,15 +14,15 @@ class PageController extends Controller
     {
         $request->validate([
             'title' => 'required|max:255',
-            'content' => 'required',
+            'value' => 'required',
         ]);
         
         if (Auth::role() == 'admin')
         {
-            $page = Page::updateOrCreate([
+            $page = Page::updateOrCreate(
                 ['key' => $request->title],
-                ['content' => $request->content],
-            ]);
+                ['value' => $request->value]
+            );
             return response()->json($page, 201);
         }
         else 
@@ -47,10 +46,10 @@ class PageController extends Controller
         
         if (Auth::role() == 'admin')
         {
-            $faq = FAQ::updateOrCreate([
+            $faq = FAQ::updateOrCreate(
                 ['question' => $request->question],
-                ['answer' => $request->answer],
-            ]);
+                ['answer' => $request->answer]
+            );
             return response()->json($faq, 201);
         }
         else 
@@ -63,5 +62,24 @@ class PageController extends Controller
     {
         $faqs = FAQ::all();
         return response()->json($faqs, 200);
+    }
+
+    public function createOrUpdateFAQ(Request $request)
+    {
+        $request->validate([
+            'question' => 'required|string|max:255',
+            'answer' => 'required|string',
+        ]);
+
+        if (Auth::role() == 'admin') {
+            $faq = FAQ::updateOrCreate(
+                ['question' => $request->question],
+                ['answer' => $request->answer]
+            );
+
+            return response()->json($faq, 201);
+        } else {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
     }
 }

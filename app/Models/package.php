@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\{Addon, PackageAddon, Service};
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 
 class Package extends Model
@@ -29,4 +31,14 @@ class Package extends Model
     {
         return $this->belongsToMany(Addon::class, 'package_addons')->withPivot('price')->withTimestamps();
     }
+
+    protected function image(): Attribute
+    {
+        return Attribute::make(
+             get: fn (?string $value) => $value ? url($value) : url('images/default/noImage.jpg'),
+        );
+       
+    }
 }
+
+

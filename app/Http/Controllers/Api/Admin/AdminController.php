@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Models\Document;
 use App\Models\Addon;
 
 class AdminController extends Controller
@@ -17,11 +18,49 @@ class AdminController extends Controller
     
     public function getPendingVendors()
     {
-        $pendingVendors = Vendor::where('approval_status', 'pending')->with('user')->get();
+        $pendingVendors = Vendor::where('approval_status', 'pending')
+            ->with(['user', 'categories', 'documents'])
+            ->get();
+        
+        // Enhance each vendor with document information
+        foreach ($pendingVendors as $vendor) {
+            if ($vendor->documents) {
+                $vendor->documents_info = [
+                    'nid_url' => $vendor->documents->nid,
+                    'pob_url' => $vendor->documents->pob,
+                    'uploaded_at' => $vendor->documents->created_at
+                ];
+            } else {
+                $vendor->documents_info = null;
+            }
+        }
         
         return response()->json([
             'message' => 'Pending vendors retrieved successfully',
             'vendors' => $pendingVendors
+        ], 200);
+    }
+    
+    public function getAllVendors()
+    {
+        $vendors = Vendor::with(['user', 'categories', 'documents'])->get();
+        
+        // Enhance each vendor with document information
+        foreach ($vendors as $vendor) {
+            if ($vendor->documents) {
+                $vendor->documents_info = [
+                    'nid_url' => $vendor->documents->nid,
+                    'pob_url' => $vendor->documents->pob,
+                    'uploaded_at' => $vendor->documents->created_at
+                ];
+            } else {
+                $vendor->documents_info = null;
+            }
+        }
+        
+        return response()->json([
+            'message' => 'Vendors retrieved successfully',
+            'vendors' => $vendors
         ], 200);
     }
     

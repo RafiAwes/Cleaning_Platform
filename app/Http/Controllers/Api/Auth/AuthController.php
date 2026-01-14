@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\{Auth, Hash};
+use Illuminate\Support\Facades\{Auth, Hash, DB};
 use Illuminate\Validation\ValidationException;
 use App\Http\Controllers\Controller;
-use App\Models\{Document, User, Vendor};
+use App\Models\{Document, User, Vendor, Category};
 use App\Services\{EmailVerificationService, FileUploadService};
 use Carbon\Carbon;
 
@@ -31,7 +31,8 @@ class AuthController extends Controller
             'role' => 'required|string|in:customer,vendor',
             'address' => 'required_if:role,vendor|string',
             'business_name' => 'required_if:role,vendor|string|max:255',
-            'service_category' => 'required_if:role,vendor',
+            'service_categories' => 'required_if:role,vendor|array',
+            'service_categories.*' => 'exists:categories,id',
         ]);
 
         $matchPassword = $data['password'] === $data['password_confirmation'];
@@ -43,55 +44,83 @@ class AuthController extends Controller
 
         $type = $data['role'];
         if ($type === 'vendor') {
+            // Use database transaction to ensure all-or-nothing registration
+            $result = DB::transaction(function () use ($data) {
+                $user = new User;
+                $user->name = $data['name'];
+                $user->email = $data['email'];
+                $user->password = Hash::make($data['password']);
+                $user->role = 'vendor';
+                $user->created_at = Carbon::now();
+                $user->save();
 
+                // Handle categories - make sure it's an array and filter out any invalid entries
+                $categories = [];
+                if (isset($data['service_categories'])) {
+                    $categories = is_array($data['service_categories']) 
+                        ? $data['service_categories'] 
+                        : [$data['service_categories']];
+                    
+                    // Filter out any null/empty values
+                    $categories = array_filter($categories, function($cat) {
+                        return !empty($cat);
+                    });
+                }
+
+                // Create vendor profile with pending approval status
+                $vendor = new Vendor;
+                $vendor->user_id = $user->id;
+                $vendor->address = $data['address'];
+                $vendor->business_name = $data['business_name'];
+                $vendor->approval_status = 'pending';
+                $vendor->save();
+
+                // Attach selected categories to the vendor using the relationship (only if categories exist)
+                if (!empty($categories)) {
+                    $vendor->categories()->attach($categories);
+                }
+
+                // Send verification code
+                $this->emailVerificationService->sendVerificationCode($user);
+
+                return [
+                    'user' => $user,
+                    'message' => 'Vendor registered successfully. Please verify your email.'
+                ];
+            });
+
+            return response()->json([
+                'message' => $result['message'],
+                'user' => $result['user'],
+            ], 201);
+        }
+
+        // Handle customer registration (also in transaction for consistency)
+        $result = DB::transaction(function () use ($data) {
             $user = new User;
             $user->name = $data['name'];
             $user->email = $data['email'];
-            // Note: Not storing address in users table for vendors
             $user->password = Hash::make($data['password']);
-            $user->role = 'vendor';
+            $user->role = 'customer';
             $user->created_at = Carbon::now();
             $user->save();
-
-            $categories = is_array($data['service_category']) ? $data['service_category'] : [$data['service_category']];
-
-            // Create vendor profile with pending approval status
-            $vendor = new Vendor;
-            $vendor->user_id = $user->id;
-            $vendor->address = $data['address'];
-            $vendor->business_name = $data['business_name'];
-            $vendor->service_category = json_encode($categories);
-            $vendor->approval_status = 'pending';
-            $vendor->save();
 
             // Send verification code
             $this->emailVerificationService->sendVerificationCode($user);
 
-            return response()->json([
-                'message' => 'Vendor registered successfully. Please verify your email.',
-                'user' => $user,
-            ], 201);
-        }
-
-        $user = new User;
-        $user->name = $data['name'];
-        $user->email = $data['email'];
-        $user->password = Hash::make($data['password']);
-        $user->role = 'customer';
-        $user->created_at = Carbon::now();
-        $user->save();
-
-        // Send verification code
-        $this->emailVerificationService->sendVerificationCode($user);
+            return [
+                'user_id' => $user->id,
+                'message' => 'Registration successful. Please check your email for verification code.'
+            ];
+        });
 
         return response()->json([
-            'message' => 'Registration successful. Please check your email for verification code.',
-            'user_id' => $user->id,
+            'message' => $result['message'],
+            'user_id' => $result['user_id'],
         ], 201);
     }
 
   
-
     public function verifyRegistration(Request $request)
     {
         $data = $request->validate([
@@ -143,7 +172,8 @@ class AuthController extends Controller
 
         //part of code that check if the vendor is approved
 
-        // // Check if vendor is approved
+    
+ // // Check if vendor is approved
         // if ($user->role === 'vendor') {
         //     $vendor = $user->vendor;
         //     if ($vendor && $vendor->approval_status === 'pending') {
@@ -162,6 +192,8 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
+            'message' => 'Login successful.',
+            'user' => $user,
             'access_token' => $token,
             'token_type' => 'Bearer',
         ], 200);

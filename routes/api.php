@@ -9,8 +9,6 @@ use App\Http\Controllers\Api\{AddonController, BlogController, BookingController
 use App\Http\Controllers\Api\Vendor\{PackageController, VendorController};
 
 
-
-
 // Public routes
 Route::post('/register/', [AuthController::class, 'register']);
 // Route::post('/register/vendor', [AuthController::class, 'registerVendor']);
@@ -21,6 +19,7 @@ Route::post('/stripe/webhook', [StripeController::class, 'webhook']);
 Route::get('/page/contents', [PageController::class, 'indexPageContent']);
 Route::get('/faq/contents', [PageController::class, 'indexFaqContent']);
 Route::GET('/blogs', [BlogController::class, 'index'])->name('list.blogs');
+Route::GET('/categories', [CategoryController::class, 'categoryListPublic']);
 
 // Google OAuth routes with web middleware for session support
 Route::group(['controller' => GoogleController::class, 'middleware' => 'web'], function () {
@@ -112,7 +111,7 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
             Route::post('/booking/complete/{bookingId}', 'completeBooking')->name('booking.complete');
             Route::post('/cancel/bookings/{bookingId}', 'cancelBooking')->name('booking.cancel');
         });
-        
+
         Route::group(['controller' => CleanerController::class], function () {
             Route::post('/add/cleaners', 'addCleaner')->name('add.cleaner');
             Route::get('/get/cleaners/{vendor_id}', 'getCleaners')->name('get.cleaners');
@@ -120,16 +119,16 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
 
         // custom service
         Route::group(['controller' => ServiceController::class], function () {
-            Route::post('/create/custom-service', 'createCustomService')->name('custom.service.create');
+            Route::post('/create/custom-service', 'createCustomPrice')->name('custom.service.create');
         });
-        
+
         // Inventory
         Route::apiResource('inventory', InventoryController::class);
-        
+
         // Booking targets
         Route::post('/booking-target', [VendorController::class, 'bookingTarget']);
     });
-    
+
     // Admin routes
     Route::group(['prefix' => 'admin', 'middleware' => 'role:admin'], function () {
         Route::get('/dashboard', [AdminController::class, 'dashboard']);
@@ -150,7 +149,6 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
             Route::delete('/addons/{addon}', 'deleteAddon');
         });
 
-
         Route::POST('/add/page/content', [PageController::class, 'createPageContent'])->name('add.page.content');
         Route::POST('/add/faq/content', [PageController::class, 'createFaqContent'])->name('add.faq.content');
         Route::group(['controller' => BlogController::class], function () {
@@ -158,6 +156,7 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
             Route::PUT('/blog/{id}', 'updateBlog')->name('update.blog');
             Route::DELETE('/blog/{id}', 'deleteBlog')->name('delete.blog');
         });
+        
         Route::group(['controller' => CategoryController::class], function () {
             Route::post('/create/category', 'createCategory');
             Route::put('/category/{id}', 'editCategory');

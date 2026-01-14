@@ -103,8 +103,13 @@ class EmailVerificationController extends Controller
         $user->verification_expires_at = null;
         $user->update();
 
+        // Create token for the user after successful verification
+        $token = $user->createToken('auth_token')->plainTextToken;
+
         return response()->json([
-            'message' => 'Email verified successfully'
+            'message' => 'Email verified successfully',
+            'access_token' => $token,
+            'user' => $user
         ], 200);
     }
 }
