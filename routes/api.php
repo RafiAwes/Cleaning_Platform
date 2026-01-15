@@ -72,6 +72,7 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
         Route::group(['controller' => VendorController::class], function () {
 
             Route::post('/upload-business-documents', 'uploadBusinessDocuments');
+            Route::get('/document-status', 'getDocumentStatus');
             Route::get('/dashboard', 'dashboard');
             Route::post('/profile/update', 'updateOrCreate');
             Route::post('/address/update', 'updateAddress');

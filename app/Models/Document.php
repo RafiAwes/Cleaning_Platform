@@ -23,6 +23,7 @@ class Document extends Model
     {
         return Attribute::make(
             get: fn (?string $value) => $value ? url($value) : null,
+            set: fn (?string $value) => $value,
         );
     }
 
@@ -30,6 +31,7 @@ class Document extends Model
     {
         return Attribute::make(
             get: fn (?string $value) => $value ? url($value) : null,
+            set: fn (?string $value) => $value,
         );
     }
 

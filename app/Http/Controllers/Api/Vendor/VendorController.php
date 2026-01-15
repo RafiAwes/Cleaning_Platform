@@ -262,24 +262,60 @@ class VendorController extends Controller
         ]);
 
     }
+    
+    public function getDocumentStatus()
+    {
+        $user = Auth::user();
+        
+        // Check if the user is a vendor
+        if ($user->role !== 'vendor') {
+            return response()->json([
+                'message' => 'Access denied. Only vendors can check document status.',
+            ], 403);
+        }
+        
+        // Find the vendor's documents
+        $document = Document::where('user_id', $user->id)->first();
+        
+        if ($document) {
+            return response()->json([
+                'has_documents' => true,
+                'document' => $document,
+                'message' => 'Documents found',
+            ]);
+        } else {
+            return response()->json([
+                'has_documents' => false,
+                'message' => 'No documents uploaded',
+            ]);
+        }
+    }
 
     public function uploadBusinessDocuments(Request $request)
     {
-        $data = $request->validate([
-            // 'user_id' => 'required|exists:users,id',
-            'nid' => 'required', // National ID for vendors
-            'pob' => 'required', // Proof of Business for vendors
-        ]);
-
-        $nid = $this->fileUploadService->uploadFile($request->file('nid'), 'documents/nid');
-        $pob = $this->fileUploadService->uploadFile($request->file('pob'), 'documents/pob');
-
-        $document = new Document;
-        $document->user_id = Auth::id();
-        $document->nid = $nid;
-        $document->pob = $pob;
-        $document->save();
-
-        return $this->successResponse($document, 'Business documents uploaded successfully', 201);
+        try {
+            $data = $request->validate([
+                // 'user_id' => 'required|exists:users,id',
+                'nid' => 'required|file|mimes:jpeg,png,jpg,pdf|max:10240', // National ID for vendors
+                'pob' => 'required|file|mimes:jpeg,png,jpg,pdf|max:10240', // Proof of Business for vendors
+            ]);
+    
+            $nid = $this->fileUploadService->uploadFile($request->file('nid'), 'documents/nid');
+            $pob = $this->fileUploadService->uploadFile($request->file('pob'), 'documents/pob');
+    
+            $document = new Document;
+            $document->fill([
+                'user_id' => Auth::id(),
+                'nid' => $nid,
+                'pob' => $pob,
+            ]);
+            $document->save();
+    
+            return $this->successResponse($document, 'Business documents uploaded successfully', 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->errorResponse('Validation failed: ' . $e->getMessage(), 422, $e->errors());
+        } catch (\Exception $e) {
+            return $this->errorResponse('Upload failed: ' . $e->getMessage(), 500);
+        }
     }
 }
