@@ -3,10 +3,11 @@
 namespace App\Http\Controllers\Api\Vendor;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\{Auth, File};
+use Illuminate\Support\Facades\{Auth, DB, File};
 use Illuminate\Support\Str;
+use Carbon\Carbon;
 use App\Http\Controllers\Controller;
-use App\Models\{Cleaner, Document, Package, Service, Transaction, User, Vendor};
+use App\Models\{Booking, Cleaner, Document, Package, Service, Transaction, User, Vendor};
 use App\Services\FileUploadService;
 use App\Traits\ApiResponseTrait;
 
@@ -41,9 +42,110 @@ class VendorController extends Controller
         return self::VENDOR_IMAGE_PATH.'/'.$imageName;
     }
 
-    public function dashboard()
+    public function dashboard(Request $request)
     {
-        return 'Vendor Dashboard';
+        if (! Auth::check()) {
+            return response()->json([
+                'message' => 'Unauthenticated. Please login to continue.',
+            ], 401);
+        }
+
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        if ($user->role !== 'vendor') {
+            return response()->json([
+                'message' => 'Access denied. Only vendors can view the dashboard.',
+            ], 403);
+        }
+
+        $vendorProfile = Vendor::where('user_id', '=', $user->id, 'and')->first();
+        $packagesCount = Package::where('vendor_id', '=', $user->id, 'and')->count();
+
+        $bookingQuery = Booking::with([
+            'customer:id,name,email,profile_picture',
+            'package:id,title,price,vendor_id',
+            'cleaner:id,name,phone,image',
+        ])->where(function ($query) use ($user) {
+            $query->where('vendor_id', '=', $user->id, 'and')
+                ->orWhereHas('package', function ($packageQuery) use ($user) {
+                    $packageQuery->where('vendor_id', '=', $user->id, 'and');
+                });
+        });
+
+        $totalBookings = (clone $bookingQuery)->count();
+
+        $statusCounts = [
+            'new' => (clone $bookingQuery)->where('status', '=', 'new', 'and')->count(),
+            'pending' => (clone $bookingQuery)->whereIn('status', ['pending', 'accepted'], 'and')->count(),
+            'completed' => (clone $bookingQuery)->where('status', '=', 'completed', 'and')->count(),
+        ];
+
+        $bookingsTarget = $vendorProfile->bookings_target ?? 0;
+        $revenueTarget = $vendorProfile->revenue_target ?? 0;
+
+        $totalEarnings = Transaction::where('vendor_id', '=', $user->id, 'and')
+            ->whereIn('status', ['paid', 'released'], 'and')
+            ->sum('vendor_amount');
+
+        $summary = [
+            'total_packages' => $packagesCount,
+            'total_bookings' => $totalBookings,
+            'target_bookings' => $bookingsTarget,
+            'target_bookings_progress' => $bookingsTarget > 0
+                ? min(100, (int) round(($totalBookings / $bookingsTarget) * 100))
+                : 0,
+            'total_earnings' => (float) $totalEarnings,
+            'revenue_target' => (float) $revenueTarget,
+            'revenue_target_progress' => $revenueTarget > 0
+                ? min(100, (int) round(($totalEarnings / $revenueTarget) * 100))
+                : 0,
+        ];
+
+        $recentBookings = (clone $bookingQuery)
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function ($booking) {
+                return [
+                    'id' => $booking->id,
+                    'title' => optional($booking->package)->title ?? 'Custom booking',
+                    'total_price' => $booking->total_price,
+                    'booking_date_time' => $booking->booking_date_time,
+                    'status' => $booking->status,
+                    'customer' => [
+                        'name' => optional($booking->customer)->name,
+                        'email' => optional($booking->customer)->email,
+                        'profile_picture' => optional($booking->customer)->profile_picture,
+                    ],
+                ];
+            });
+
+        $startDate = Carbon::now()->subDays(6)->startOfDay();
+        $dailyCounts = (clone $bookingQuery)
+            ->whereDate('booking_date_time', '>=', $startDate->toDateString())
+            ->select(DB::raw('DATE(booking_date_time) as date'), DB::raw('COUNT(*) as total'))
+            ->groupBy('date')
+            ->pluck('total', 'date');
+
+        $weeklyBookings = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = Carbon::now()->subDays($i);
+            $weeklyBookings[] = [
+                'day' => $date->format('D'),
+                'value' => (int) ($dailyCounts[$date->toDateString()] ?? 0),
+            ];
+        }
+
+        return response()->json([
+            'message' => 'Vendor dashboard data loaded successfully',
+            'data' => [
+                'summary' => $summary,
+                'bookings_by_status' => $statusCounts,
+                'recent_bookings' => $recentBookings,
+                'weekly_bookings' => $weeklyBookings,
+            ],
+        ]);
     }
 
     public function updateOrCreate(Request $request)
@@ -51,7 +153,7 @@ class VendorController extends Controller
         /** @var \App\Models\User $currentUser */
         $currentUser = Auth::user();
         $userId = $currentUser->id;
-        $vendor = Vendor::where('user_id', $userId)->first();
+        $vendor = Vendor::where('user_id', '=', $userId, 'and')->first();
 
         if (! $vendor) {
             $vendor = new Vendor;
@@ -76,7 +178,8 @@ class VendorController extends Controller
             $user->profile_picture = $imagePath;
         }
 
-        $user->update($validated);
+        $user->fill($validated);
+        $user->save();
 
         return response()->json([
             'message' => 'Vendor profile updated successfully',
@@ -96,7 +199,7 @@ class VendorController extends Controller
             ], 403);
         }
 
-        $vendor = Vendor::where('user_id', $currentUser->id)->first();
+        $vendor = Vendor::where('user_id', '=', $currentUser->id, 'and')->first();
 
         if (! $vendor) {
             // Create vendor profile if it doesn't exist
@@ -142,17 +245,25 @@ class VendorController extends Controller
         $data = $request->validate([
             'name' => 'required|string',
             'phone' => 'required|string',
+            'address' => 'nullable|string',
             'image' => 'nullable|image',
-            'status' => 'required|in:active,assigned,completed',
+            'status' => 'nullable|in:active,assigned,completed',
         ]);
 
+        $vendorProfile = Vendor::where('user_id', '=', $user->id, 'and')->first();
+        if (! $vendorProfile) {
+            return response()->json([
+                'message' => 'Vendor profile not found for the current user.',
+            ], 404);
+        }
+
         $cleaner = new Cleaner;
-        $cleaner->vendor_id = $user->id;
+        $cleaner->vendor_id = $vendorProfile->id;
         $cleaner->name = $data['name'];
         $cleaner->phone = $data['phone'];
-        $cleaner->status = $data['status'];
+        $cleaner->address = $data['address'] ?? null;
+        $cleaner->status = $data['status'] ?? 'active';
 
-        // Handle image upload
         if ($request->hasFile('image')) {
             $cleaner->image = $request->file('image')->store('cleaners', 'public');
         }
@@ -167,7 +278,17 @@ class VendorController extends Controller
 
     public function getCleaners()
     {
-        $cleaners = Cleaner::where('vendor_id', Auth::id())->get();
+        $vendorProfile = Vendor::where('user_id', '=', Auth::id(), 'and')->first();
+        if (! $vendorProfile) {
+            return response()->json([
+                'message' => 'Vendor profile not found for the current user.',
+                'cleaners' => [],
+            ], 404);
+        }
+
+        $cleaners = Cleaner::where('vendor_id', '=', $vendorProfile->id, 'and')
+            ->orderByDesc('id')
+            ->paginate(10);
 
         return response()->json([
             'message' => 'Cleaners retrieved successfully',
@@ -175,9 +296,87 @@ class VendorController extends Controller
         ]);
     }
 
+    public function getCleaner(Cleaner $cleaner)
+    {
+        $vendorProfile = Vendor::where('user_id', '=', Auth::id(), 'and')->first();
+        if (! $vendorProfile || $cleaner->vendor_id !== $vendorProfile->id) {
+            return response()->json([
+                'message' => 'Unauthorized to view this cleaner.',
+            ], 403);
+        }
+
+        // Load cleaner with bookings
+        $cleaner->load(['bookings' => function($query) {
+            $query->select('id', 'cleaner_id', 'status', 'booking_date_time', 'total_price', 'customer_id', 'package_id')
+                  ->with(['customer:id,name,email,image', 'package:id,name']);
+        }]);
+
+        $bookingsCount = $cleaner->bookings()->count();
+        $activeBookings = $cleaner->bookings()->where('status', '=', 'pending', 'and')->count();
+        $completedBookings = $cleaner->bookings()->where('status', '=', 'completed', 'and')->count();
+
+        return response()->json([
+            'message' => 'Cleaner retrieved successfully',
+            'cleaner' => array_merge($cleaner->toArray(), [
+                'bookings_count' => $bookingsCount,
+                'active_bookings' => $activeBookings,
+                'completed_bookings' => $completedBookings,
+            ]),
+        ]);
+    }
+
+    public function updateCleaner(Request $request, Cleaner $cleaner)
+    {
+        $vendorProfile = Vendor::where('user_id', '=', Auth::id(), 'and')->first();
+        if (! $vendorProfile || $cleaner->vendor_id !== $vendorProfile->id) {
+            return response()->json([
+                'message' => 'Unauthorized to update this cleaner.',
+            ], 403);
+        }
+
+        $data = $request->validate([
+            'name' => 'required|string',
+            'phone' => 'required|string',
+            'address' => 'nullable|string',
+            'image' => 'nullable|image',
+            'status' => 'required|in:active,assigned,completed',
+        ]);
+
+        if ($request->hasFile('image')) {
+            $cleaner->image = $request->file('image')->store('cleaners', 'public');
+        }
+
+        $cleaner->name = $data['name'];
+        $cleaner->phone = $data['phone'];
+        $cleaner->address = $data['address'] ?? null;
+        $cleaner->status = $data['status'];
+        $cleaner->save();
+
+        return response()->json([
+            'message' => 'Cleaner updated successfully',
+            'cleaner' => $cleaner,
+        ]);
+    }
+
+    public function deleteCleaner(Cleaner $cleaner)
+    {
+        $vendorProfile = Vendor::where('user_id', '=', Auth::id(), 'and')->first();
+        if (! $vendorProfile || $cleaner->vendor_id !== $vendorProfile->id) {
+            return response()->json([
+                'message' => 'Unauthorized to delete this cleaner.',
+            ], 403);
+        }
+
+        Cleaner::where('id', '=', $cleaner->id, 'and')->delete();
+
+        return response()->json([
+            'message' => 'Cleaner deleted successfully',
+        ]);
+    }
+
     public function bookingTarget(Request $request)
     {
-        $vendor = Vendor::where('user_id', Auth::id())->first();
+        $vendor = Vendor::where('user_id', '=', Auth::id(), 'and')->first();
         if (! $vendor) {
             $bookingTarget = new Vendor;
             $bookingTarget->user_id = Auth::id();
@@ -189,9 +388,8 @@ class VendorController extends Controller
                 'vendor' => $bookingTarget,
             ], 201);
         } else {
-            $vendor->update([
-                'bookings_target' => $request->bookings_target,
-            ]);
+            $vendor->bookings_target = $request->bookings_target;
+            $vendor->save();
 
             return response()->json([
                 'message' => 'Bookings target updated successfully',
@@ -202,7 +400,7 @@ class VendorController extends Controller
 
     public function revenueTarget(Request $request)
     {
-        $vendor = Vendor::where('user_id', Auth::id())->first();
+        $vendor = Vendor::where('user_id', '=', Auth::id(), 'and')->first();
         if (! $vendor) {
             $revenueTarget = new Vendor;
             $revenueTarget->user_id = Auth::id();
@@ -214,9 +412,8 @@ class VendorController extends Controller
                 'vendor' => $revenueTarget,
             ], 201);
         } else {
-            $vendor->update([
-                'revenue_target' => $request->revenue_target,
-            ]);
+            $vendor->revenue_target = $request->revenue_target;
+            $vendor->save();
 
             return response()->json([
                 'message' => 'Revenue target updated successfully',
@@ -229,7 +426,7 @@ class VendorController extends Controller
     {
         /** @var \App\Models\User $vendor */
         $vendor = Auth::user();
-        $vendor_profile = Vendor::where('user_id', $vendor->id)->first();
+        $vendor_profile = Vendor::where('user_id', '=', $vendor->id, 'and')->first();
         $bookings_target = $vendor_profile->bookings_target ?? 0;
         $revenue_target = $vendor_profile->revenue_target ?? 0;
 
@@ -243,7 +440,7 @@ class VendorController extends Controller
     public function totalEarnings()
     {
         $vendor = Auth::user();
-        $total_amount = Transaction::where('vendor_id', $vendor->id)->where('status', 'paid')->sum('vendor_amount');
+        $total_amount = Transaction::where('vendor_id', '=', $vendor->id, 'and')->where('status', '=', 'paid', 'and')->sum('vendor_amount');
 
         return response()->json([
             'success' => true,
@@ -254,7 +451,7 @@ class VendorController extends Controller
     public function transactionHistory()
     {
         $vendor = Auth::user();
-        $trasactions = Transaction::where('vendor_id', $vendor->id)->orderBy('created_at', 'desc')->paginate(10);
+        $trasactions = Transaction::where('vendor_id', '=', $vendor->id, 'and')->orderBy('created_at', 'desc')->paginate(10);
 
         return response()->json([
             'success' => true,
@@ -275,7 +472,7 @@ class VendorController extends Controller
         }
         
         // Find the vendor's documents
-        $document = Document::where('user_id', $user->id)->first();
+        $document = Document::where('user_id', '=', $user->id, 'and')->first();
         
         if ($document) {
             return response()->json([

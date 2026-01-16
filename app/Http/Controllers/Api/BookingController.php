@@ -41,13 +41,18 @@ class BookingController extends Controller
 
         // Calculate total
         $total = 0;
-        foreach ($customBooking->items as $item) {
+        $items = is_array($customBooking->items)
+            ? $customBooking->items
+            : json_decode($customBooking->items ?? '[]', true);
+
+        foreach ($items as $item) {
             $price = CustomPrice::findOrFail($item['custom_price_id']);
             $total += $price->price * $item['qty'];
         }
 
         $booking = Booking::create([
             'customer_id' => $user->id,
+            'vendor_id' => $vendor->user_id,
             'cleaner_id' => null,
             'package_id' => null,
             'booking_date_time' => $request->date,
@@ -59,7 +64,7 @@ class BookingController extends Controller
 
         // Notify vendor
         $vendorUser = User::findOrFail($vendor->user_id);
-        $vendorUser->notify(new CustomerBookedPackage($booking, 'new'));
+        $vendorUser->notify(new CustomerBookedPackage($booking));
 
         return response()->json([
             'message' => 'Custom booking created successfully.',
@@ -73,6 +78,7 @@ class BookingController extends Controller
 
         $booking = Booking::create([
             'customer_id' => $user->id,
+            'vendor_id' => $vendor->user_id,
             'cleaner_id' => null,
             'package_id' => $package->id,
             'booking_date_time' => $request->date,
@@ -84,7 +90,7 @@ class BookingController extends Controller
 
         // Notify vendor
         $vendorUser = User::findOrFail($vendor->user_id);
-        $vendorUser->notify(new CustomerBookedPackage($booking, 'new'));
+        $vendorUser->notify(new CustomerBookedPackage($booking));
 
         return response()->json([
             'message' => 'Package booking created successfully.',
@@ -106,7 +112,7 @@ class BookingController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
-        $vendor = Vendor::where('user_id', $data['vendor_id'])->firstOrFail();
+        $vendor = Vendor::where('user_id', '=', $data['vendor_id'], 'and')->firstOrFail();
 
         if ($vendor->is_custom == true) {
 
@@ -185,7 +191,7 @@ class BookingController extends Controller
         $vendorId = $package->vendor_id;
 
         // Count vendor cleaners
-        $totalCleaners = Cleaner::where('vendor_id', $vendorId)->count();
+        $totalCleaners = Cleaner::where('vendor_id', '=', $vendorId, 'and')->count();
 
         if ($totalCleaners === 0) {
             return response()->json([
@@ -197,9 +203,9 @@ class BookingController extends Controller
         //Get bookings for this vendor’s cleaners
         $bookings = Booking::whereHas('cleaner', function($q) use ($vendorId) 
         {
-            $q->where('vendor_id', $vendorId);
+            $q->where('vendor_id', '=', $vendorId);
         })
-        ->whereIn('status', ['pending', 'ongoing'])
+        ->whereIn('status', ['pending', 'ongoing'], 'and', false)
         ->get();
 
         //Group bookings by date
@@ -264,7 +270,7 @@ class BookingController extends Controller
         }
 
         // Check if booking was already paid
-        $transaction = Transaction::where('booking_id', $bookingId)->first();
+        $transaction = Transaction::where('booking_id', '=', $bookingId, 'and')->first();
 
         if ($transaction && $transaction->status === 'paid') {
             
@@ -282,10 +288,10 @@ class BookingController extends Controller
 
         // Notify opposite party
         if ($user->role == 'customer') {
-            $vendor = User::find($booking->vendor_id);
+            $vendor = User::find($booking->vendor_id, ['*']);
             if ($vendor) $vendor->notify(new \App\Notifications\BookingStatus($booking, 'cancelled'));
         } else {
-            $customer = User::find($booking->customer_id);
+            $customer = User::find($booking->customer_id, ['*']);
             if ($customer) $customer->notify(new \App\Notifications\BookingStatus($booking, 'cancelled'));
         }
 
@@ -301,9 +307,9 @@ class BookingController extends Controller
         $user = Auth::user();
         
         if($user->role == 'customer'){
-            $bookings = Booking::where('customer_id', $user->id)->get();
+            $bookings = Booking::where('customer_id', '=', $user->id, 'and')->get();
         } else if($user->role == 'vendor'){
-            $bookings = Booking::where('vendor_id', $user->id)->get();
+            $bookings = Booking::where('vendor_id', '=', $user->id, 'and')->get();
         } else if($user->role == 'admin'){
             $bookings = Booking::all();
         } else {
@@ -313,6 +319,30 @@ class BookingController extends Controller
         }
         return response()->json([
             'message' => 'Bookings retrieved successfully',
+            'bookings' => $bookings
+        ]);
+    }
+
+    public function vendorBookings()
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        
+        $vendorId = $user->id;
+
+        // Include bookings directly linked to vendor_id as well as legacy ones linked via package vendor_id
+        $bookings = Booking::with(['customer', 'package', 'cleaner'])
+            ->where(function ($query) use ($vendorId) {
+                $query->where('vendor_id', '=', $vendorId, 'and')
+                    ->orWhereHas('package', function ($packageQuery) use ($vendorId) {
+                        $packageQuery->where('vendor_id', '=', $vendorId, 'and');
+                    });
+            })
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        return response()->json([
+            'message' => 'Vendor bookings retrieved successfully',
             'bookings' => $bookings
         ]);
     }

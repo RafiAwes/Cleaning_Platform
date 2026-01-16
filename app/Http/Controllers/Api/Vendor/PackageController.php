@@ -40,7 +40,7 @@ class PackageController extends Controller
         }
 
         // Get packages for this vendor
-        $packages = Package::where('vendor_id', $user->id)->with(['services', 'addons'])->get();
+        $packages = Package::where('vendor_id', '=', $user->id, 'and')->with(['services', 'addons'])->get();
 
         return response()->json([
             'message' => 'Packages retrieved successfully',
@@ -56,17 +56,27 @@ class PackageController extends Controller
             ], 401);
         }
 
+        // Normalize JSON strings coming from FormData (services, addons)
+        $payload = $request->all();
+        if (isset($payload['services']) && is_string($payload['services'])) {
+            $decoded = json_decode($payload['services'], true);
+            $payload['services'] = is_array($decoded) ? $decoded : [];
+        }
+        if (isset($payload['addons']) && is_string($payload['addons'])) {
+            $decoded = json_decode($payload['addons'], true);
+            $payload['addons'] = is_array($decoded) ? $decoded : [];
+        }
+        $request->replace($payload);
+
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'required|string',
             'price' => 'required|numeric',
             'image' => 'nullable|image|max:4096',
 
-            // Nested Array Validation
+            // Nested Array Validation - services now only require title
             'services' => 'required|array|min:1',
-            'services.*.title' => 'required|string',
-            'services.*.description' => 'nullable|string',
-            'services.*.price' => 'nullable|numeric',
+            'services.*.title' => 'required|string|max:255',
 
             'addons' => 'nullable|array',
             'addons.*.addon_id' => 'required|exists:addons,id',
@@ -107,6 +117,18 @@ class PackageController extends Controller
             ], 403);
         }
 
+        // Normalize JSON strings coming from FormData (services, addons)
+        $payload = $request->all();
+        if (isset($payload['services']) && is_string($payload['services'])) {
+            $decoded = json_decode($payload['services'], true);
+            $payload['services'] = is_array($decoded) ? $decoded : [];
+        }
+        if (isset($payload['addons']) && is_string($payload['addons'])) {
+            $decoded = json_decode($payload['addons'], true);
+            $payload['addons'] = is_array($decoded) ? $decoded : [];
+        }
+        $request->replace($payload);
+
         $validated = $request->validate([
             'title' => 'nullable|string|max:255',
             'description' => 'nullable|string',
@@ -114,11 +136,9 @@ class PackageController extends Controller
             'image' => 'nullable|image|max:4096',
             'status' => 'nullable|string|in:active,inactive',
 
-            // Nested Array Validation
+            // Nested Array Validation - services now only require title
             'services' => 'nullable|array',
-            'services.*.title' => 'required|string',
-            'services.*.description' => 'nullable|string',
-            'services.*.price' => 'nullable|numeric',
+            'services.*.title' => 'required|string|max:255',
 
             'addons' => 'nullable|array',
             'addons.*.addon_id' => 'required|exists:addons,id',

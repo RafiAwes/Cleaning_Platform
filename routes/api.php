@@ -46,6 +46,9 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
     });
     Route::post('/logout', [AuthController::class, 'logout']);  
     
+    // Addons - accessible to all authenticated users
+    Route::get('/addons', [AddonController::class, 'getAddons'])->name('get.addons');
+    
     // stripe
     Route::post('/stripe/connect', [StripeController::class, 'connectStripe']);
     Route::get('/stripe/callback', [StripeController::class, 'callback']);
@@ -80,6 +83,9 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
             //cleaner
             Route::post('/cleaners', 'addCleaner')->name('add.cleaner');
             Route::get('/cleaners', 'getCleaners')->name('get.cleaners');
+            Route::get('/cleaners/{cleaner}', 'getCleaner')->name('get.cleaner');
+            Route::put('/cleaners/{cleaner}', 'updateCleaner')->name('update.cleaner');
+            Route::delete('/cleaners/{cleaner}', 'deleteCleaner')->name('delete.cleaner');
 
             //target
             Route::post('/booking/targets', 'bookingTarget')->name('add.target');
@@ -96,12 +102,21 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
             Route::put('/package/{package}', 'updatePackage');
             Route::delete('/packages/{package}', 'deletePackage');
         });
+
+        Route::group(['controller' => InventoryController::class], function () {
+            // Inventory
+            Route::post('/inventory', 'vendorAddProduct')->name('vendor.add.product');
+            Route::get('/inventory', 'vendorGetProducts')->name('vendor.get.products');
+            Route::get('/inventory/{inventory}', 'vendorGetProduct')->name('vendor.get.product');
+            Route::post('/inventory/{inventory}', 'vendorUpdateProduct')->name('vendor.update.product');
+            Route::delete('/inventory/{inventory}', 'vendorDeleteProduct')->name('vendor.delete.product');
+        });
         
         // Services
         // Route::apiResource('services', ServiceController::class);
         
-        // Addons
-        Route::apiResource('addons', AddonController::class);
+            // Addons
+            // Route::apiResource('addons', AddonController::class); // Moved outside vendor group to allow broader access
         
         // Bookings
         Route::group(['controller' => BookingController::class], function () {
@@ -113,18 +128,10 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
             Route::post('/cancel/bookings/{bookingId}', 'cancelBooking')->name('booking.cancel');
         });
 
-        Route::group(['controller' => CleanerController::class], function () {
-            Route::post('/add/cleaners', 'addCleaner')->name('add.cleaner');
-            Route::get('/get/cleaners/{vendor_id}', 'getCleaners')->name('get.cleaners');
-        });
-
         // custom service
         Route::group(['controller' => ServiceController::class], function () {
             Route::post('/create/custom-service', 'createCustomPrice')->name('custom.service.create');
         });
-
-        // Inventory
-        Route::apiResource('inventory', InventoryController::class);
 
         // Booking targets
         Route::post('/booking-target', [VendorController::class, 'bookingTarget']);

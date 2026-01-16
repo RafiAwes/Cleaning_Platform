@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\CustomPrice;
+use App\Models\Service;
+use Illuminate\Support\Facades\DB;
 use App\Traits\ApiResponseTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -38,7 +40,7 @@ class ServiceController extends Controller
             ];
         }
 
-        CustomPrice::insert($dataToInsert);
+        DB::table('custom_prices')->insert($dataToInsert);
        
         return $this->successResponse($dataToInsert, 'Custom services created successfully', 201);
     }
@@ -52,7 +54,7 @@ class ServiceController extends Controller
             return $this->errorResponse('Unauthorized - Only vendors can view custom services', 401);
         }
 
-        $customPrices = CustomPrice::where('vendor_id', $user->id)->get();
+        $customPrices = CustomPrice::where('vendor_id', '=', $user->id, 'and')->get();
 
         return $this->successResponse($customPrices, 'Custom services retrieved successfully', 200);
     }

@@ -32,7 +32,7 @@ class AddonController extends Controller
         ]);
 
         $addon = Addon::create([
-            'name' => $request->name,
+            'title' => $request->name,
         ]);
 
         return response()->json([
@@ -63,8 +63,8 @@ class AddonController extends Controller
             'name' => 'required|string',
         ]);
 
-        $addon->update([
-            'name' => $request->name,
+        Addon::where('id', '=', $addon->id, 'and')->update([
+            'title' => $request->name,
         ]);
 
         return response()->json([
@@ -73,7 +73,7 @@ class AddonController extends Controller
         ], 200);
     }
 
-    public function removeAddon(Addon $addon)
+    public function deleteAddon(Addon $addon)
     {
         // Check if user is authenticated
         if (!Auth::check()) {
@@ -82,7 +82,7 @@ class AddonController extends Controller
             ], 401);
         }
 
-        $addon->delete();
+        Addon::where('id', '=', $addon->id, 'and')->delete();
         return response()->json([
             'message' => 'Addon deleted successfully'
         ], 200);
