@@ -50,11 +50,19 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
+<<<<<<< HEAD
     Route::post('/logout', [AuthController::class, 'logout']);
 
     // Addons - accessible to all authenticated users
     Route::get('/addons', [AddonController::class, 'getAddons'])->name('get.addons');
 
+=======
+    Route::post('/logout', [AuthController::class, 'logout']);  
+    
+    // Addons - accessible to all authenticated users
+    Route::get('/addons', [AddonController::class, 'getAddons'])->name('get.addons');
+    
+>>>>>>> 0e957735c0968fac7bab88b1465322d09bf19d6f
     // stripe
     Route::post('/stripe/connect', [StripeController::class, 'connectStripe']);
     Route::get('/stripe/callback', [StripeController::class, 'callback']);
@@ -117,6 +125,7 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
             Route::post('/inventory/{inventory}', 'vendorUpdateProduct')->name('vendor.update.product');
             Route::delete('/inventory/{inventory}', 'vendorDeleteProduct')->name('vendor.delete.product');
         });
+<<<<<<< HEAD
 
         // Services
         // Route::apiResource('services', ServiceController::class);
@@ -124,6 +133,15 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
             // Addons
             // Route::apiResource('addons', AddonController::class); // Moved outside vendor group to allow broader access
 
+=======
+        
+        // Services
+        // Route::apiResource('services', ServiceController::class);
+        
+            // Addons
+            // Route::apiResource('addons', AddonController::class); // Moved outside vendor group to allow broader access
+        
+>>>>>>> 0e957735c0968fac7bab88b1465322d09bf19d6f
         // Bookings
         Route::group(['controller' => BookingController::class], function () {
             Route::get('/bookings', 'vendorBookings');

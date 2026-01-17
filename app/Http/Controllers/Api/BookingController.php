@@ -170,10 +170,14 @@ class BookingController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
+<<<<<<< HEAD
         // Handle new frontend format
         if ($request->has('package_id') && $request->has('booking_date_time')) {
             return $this->createPackageBookingFromFrontend($request, $user);
         }
+=======
+        $vendor = Vendor::where('user_id', '=', $data['vendor_id'], 'and')->firstOrFail();
+>>>>>>> 0e957735c0968fac7bab88b1465322d09bf19d6f
 
         // Handle old format
         if ($request->has('vendor_id')) {
@@ -465,9 +469,15 @@ class BookingController extends Controller
         $user = Auth::user();
 
         if($user->role == 'customer'){
+<<<<<<< HEAD
             $bookings = Booking::with(['package', 'addons'])->where('customer_id', '=', $user->id, 'and')->get();
         } else if($user->role == 'vendor'){
             $bookings = Booking::with(['package', 'addons', 'customer'])->where('vendor_id', '=', $user->id, 'and')->get();
+=======
+            $bookings = Booking::where('customer_id', '=', $user->id, 'and')->get();
+        } else if($user->role == 'vendor'){
+            $bookings = Booking::where('vendor_id', '=', $user->id, 'and')->get();
+>>>>>>> 0e957735c0968fac7bab88b1465322d09bf19d6f
         } else if($user->role == 'admin'){
             $bookings = Booking::with(['package', 'addons', 'customer'])->get();
         } else {
@@ -485,11 +495,19 @@ class BookingController extends Controller
     {
         /** @var \App\Models\User $user */
         $user = Auth::user();
+<<<<<<< HEAD
 
         $vendorId = $user->id;
 
         // Include bookings directly linked to vendor_id as well as legacy ones linked via package vendor_id
         $bookings = Booking::with(['customer', 'package', 'cleaner', 'addons'])
+=======
+        
+        $vendorId = $user->id;
+
+        // Include bookings directly linked to vendor_id as well as legacy ones linked via package vendor_id
+        $bookings = Booking::with(['customer', 'package', 'cleaner'])
+>>>>>>> 0e957735c0968fac7bab88b1465322d09bf19d6f
             ->where(function ($query) use ($vendorId) {
                 $query->where('vendor_id', '=', $vendorId, 'and')
                     ->orWhereHas('package', function ($packageQuery) use ($vendorId) {
@@ -498,7 +516,11 @@ class BookingController extends Controller
             })
             ->orderBy('created_at', 'desc')
             ->get();
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> 0e957735c0968fac7bab88b1465322d09bf19d6f
         return response()->json([
             'message' => 'Vendor bookings retrieved successfully',
             'bookings' => $bookings
