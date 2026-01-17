@@ -24,7 +24,7 @@ class PackageService
             $package->vendor_id = $vendor->id;
             $package->title = $data['title'];
             $package->description = $data['description'];
-            $package->image = $image;
+            $package->setAttribute('image', $image);
             $package->price = $data['price'];
             $package->status = $data['status'] ?? 'active';            
             $package->save();
@@ -34,9 +34,9 @@ class PackageService
                 $serviceData = array_map(function ($service) {
                     return [
                         'title' => $service['title'],
-                        'description' => $service['description'] ?? null,
-                        'price' => $service['price'] ?? 0,
-                        'status' => $service['status'] ?? 'active'
+                        'description' => $service['title'], // Use title as description for now
+                        'price' => 0, // Default price to 0 for package services
+                        'status' => 'active'
                     ];
                 }, $data['services']);
 
@@ -66,7 +66,7 @@ class PackageService
                 if ($package->image) {
                     $this->fileUploadService->deleteFile($package->image);
                 }
-                $package->image = $this->fileUploadService->uploadFile($image, 'images/packages');
+                $package->setAttribute('image', $this->fileUploadService->uploadFile($image, 'images/packages'));
             }
 
             // Update package details only if fields are provided
@@ -93,9 +93,9 @@ class PackageService
                 $serviceData = array_map(function ($service) {
                     return [
                         'title' => $service['title'],
-                        'description' => $service['description'] ?? null,
-                        'price' => $service['price'] ?? 0,
-                        'status' => $service['status'] ?? 'active'
+                        'description' => $service['title'], // Use title as description for now
+                        'price' => 0, // Default price to 0 for package services
+                        'status' => 'active'
                     ];
                 }, $data['services']);
 
@@ -132,7 +132,7 @@ class PackageService
             $package->addons()->detach();
 
             // Delete the package
-            return $package->delete();
+            return Package::where('id', '=', $package->id, 'and')->delete();
         });
     }
 }

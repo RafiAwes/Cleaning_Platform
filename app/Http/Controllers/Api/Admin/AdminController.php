@@ -4,10 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Models\Vendor;
-use App\Models\Document;
-use App\Models\Addon;
+use App\Models\{Addon, Document, User, Vendor};
 
 class AdminController extends Controller
 {
@@ -18,7 +15,7 @@ class AdminController extends Controller
     
     public function getPendingVendors()
     {
-        $pendingVendors = Vendor::where('approval_status', 'pending')
+        $pendingVendors = Vendor::where('approval_status', '=', 'pending', 'and')
             ->with(['user', 'categories', 'documents'])
             ->get();
         
@@ -66,7 +63,7 @@ class AdminController extends Controller
     
     public function approveVendor(Request $request, $vendorId)
     {
-        $vendor = Vendor::find($vendorId);
+        $vendor = Vendor::find($vendorId, ['*']);
         
         if (!$vendor) {
             return response()->json([
@@ -91,7 +88,7 @@ class AdminController extends Controller
     
     public function rejectVendor(Request $request, $vendorId)
     {
-        $vendor = Vendor::find($vendorId);
+        $vendor = Vendor::find($vendorId, ['*']);
         
         if (!$vendor) {
             return response()->json([
@@ -111,6 +108,16 @@ class AdminController extends Controller
         return response()->json([
             'message' => 'Vendor rejected successfully',
             'vendor' => $vendor
+        ], 200);
+    }
+
+    public function getAllCustomers()
+    {
+        $customers = User::where('role', '=', 'customer', 'and')->get();
+        
+        return response()->json([
+            'message' => 'Customers retrieved successfully',
+            'customers' => $customers
         ], 200);
     }
 }

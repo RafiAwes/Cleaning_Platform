@@ -167,4 +167,121 @@ class PackageController extends Controller
             return $this->errorResponse('Error deleting package: '.$e->getMessage(), 500);
         }
     }
+
+    public function getPackagePublic($id)
+    {
+        try {
+            $package = Package::with(['services', 'addons', 'vendor'])
+                ->findOrFail($id);
+
+            return $this->successResponse($package, 'Package retrieved successfully', 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Package not found', 404);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Error retrieving package: '.$e->getMessage(), 500);
+        }
+    }
+
+    public function getAllPackagesPublic(Request $request)
+    {
+        try {
+            $query = Package::with(['services', 'addons', 'vendor'])
+                ->latest('id');
+
+            // Unified search across package title, service title, and vendor name
+            if ($request->filled('search')) {
+                $search = $request->input('search');
+                $query->where(function($q) use ($search) {
+                    $q->where('packages.title', 'like', "%{$search}%")
+                      ->orWhere('packages.description', 'like', "%{$search}%")
+                      ->orWhereHas('services', function($subQ) use ($search) {
+                          $subQ->where('title', 'like', "%{$search}%");
+                      })
+                      ->orWhereHas('vendor', function($subQ) use ($search) {
+                          $subQ->where('name', 'like', "%{$search}%");
+                      });
+                });
+            }
+
+            // Sorting options
+            if ($request->filled('sort_by')) {
+                $sortBy = $request->input('sort_by');
+                switch ($sortBy) {
+                    case 'highest_price':
+                        $query->orderBy('price', 'desc');
+                        break;
+                    case 'lowest_price':
+                        $query->orderBy('price', 'asc');
+                        break;
+                    case 'highest_rating':
+                        $query->orderBy('rating', 'desc');
+                        break;
+                    case 'lowest_rating':
+                        $query->orderBy('rating', 'asc');
+                        break;
+                    default:
+                        $query->latest('id');
+                }
+            }
+
+            // Pagination
+            $perPage = $request->input('per_page', 12);
+            $packages = $query->paginate($perPage);
+
+            return $this->successResponse($packages, 'Packages retrieved successfully', 200);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Error retrieving packages: '.$e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Get other packages from a specific vendor (excluding a package)
+     */
+    public function getVendorPackages($vendorId, Request $request)
+    {
+        try {
+            $excludeId = $request->input('exclude_id');
+
+            $query = Package::where('vendor_id', $vendorId)
+                ->with(['services', 'addons', 'vendor']);
+
+            if ($excludeId) {
+                $query->where('id', '!=', $excludeId);
+            }
+
+            $perPage = $request->input('per_page', 4);
+            $packages = $query->paginate($perPage);
+
+            return $this->successResponse($packages, 'Vendor packages retrieved successfully', 200);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Error retrieving vendor packages: '.$e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Get random packages for recommendations
+     */
+    public function getRandomPackages(Request $request)
+    {
+        try {
+            $limit = $request->input('limit', 5);
+            $excludeId = $request->input('exclude_id');
+
+            $query = Package::with(['services', 'addons', 'vendor']);
+
+            if ($excludeId) {
+                $query->where('id', '!=', $excludeId);
+            }
+
+            $packages = $query->inRandomOrder()->limit($limit)->get();
+
+            return $this->successResponse([
+                'data' => $packages,
+                'count' => count($packages)
+            ], 'Random packages retrieved successfully', 200);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Error retrieving random packages: '.$e->getMessage(), 500);
+        }
+    }
 }
+

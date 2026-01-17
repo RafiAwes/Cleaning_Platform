@@ -6,10 +6,14 @@ use Illuminate\Support\Facades\File;
 
 class FileUploadService
 {
-    public function uploadFile(UploadedFile $file, string $path): string
+    public function uploadFile(?UploadedFile $file, string $path): ?string
     {
-       if (!$file->isValid()) 
-        {
+        // Allow null file (e.g., when image is optional)
+        if (!$file) {
+            return null;
+        }
+
+        if (!$file->isValid()) {
             throw new \RuntimeException('Uploaded file is not valid: '.$file->getErrorMessage());
         }
 

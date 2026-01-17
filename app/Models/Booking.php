@@ -8,14 +8,20 @@ class Booking extends Model
 {
     protected $fillable = [
         'customer_id',
+        'vendor_id',
         'package_id',
         'cleaner_id',
         'booking_date_time',
         'status',
+        'customer_status',
+        'payment_status',
         'total_price',
         'ratings',
+        'ratingS',
         'notes',
-    ] ;
+        'address',
+        'is_custom',
+    ];
 
     public function customer(){
         return $this->belongsTo(User::class, 'customer_id');
@@ -39,6 +45,12 @@ class Booking extends Model
         return $this->hasOne(Review::class);
     }
 
+    public function addons(){
+        return $this->belongsToMany(Addon::class, 'booking_addons')
+                    ->withPivot('price')
+                    ->withTimestamps();
+    }
+
     public function scopeActive($query)
     {
         return $query->where('status', 'active');
@@ -49,5 +61,5 @@ class Booking extends Model
         return $query->whereDate('booking_date', $date);
     }
 
-    
+
 }
